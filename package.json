@@ -1,0 +1,30 @@
+{
+  "name": "squarespace-civicrm-sync",
+  "version": "1.0.0",
+  "description": "Syncs data from Squarespace to CiviCRM.",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "reset": "rm -f .last_sync_timestamp .last_successful_email",
+    "reset:hard": "rm -rf cache .last_sync_timestamp .last_successful_email",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "squarespace",
+    "civicrm",
+    "sync"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.8.9",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "axios": "^1.5.1",
+    "civicrm-mcp-server": "github:johncallhub/civicrm-mcp-server",
+    "dotenv": "^16.3.1"
+  }
+}

@@ -1,0 +1,717 @@
+Transactions API overview
+
+Current version: 1.0
+For versioning details, read the Upgrade guide.
+
+Use the Transactions API to access financial transactions for orders and donations made on a Squarespace merchant site.
+Payment gateways and processing errors
+
+Transactions from a merchant site occur through a payment gateway. The Transactions API supports the following payment gateways: SQUARESPACE, STRIPE, PAYPAL, and SQUARE.
+
+Payment gateway processing errors are logged by the Transactions API as one of the following:
+
+GATEWAY_FEE_PROCEESING_ERROR An error occurred while retrieving payment processing fees; contact the payment gateway for more details.
+
+GATEWAY_API_PERMISSION_ERROR The payment gateway has not granted Squarespace API access. Payment gateway needs to reconfigure API permission.
+
+GATEWAY_DISCONNNECTED The payment gateway credentials configured for the site have expired or are missing; a connection to the payment gateway could not be established.
+What information isn't available?
+
+    Order or donation details unrelated to payments, such as product information, merchant notes, and form data
+    Refunds initiated outside of Squarespace, e.g. via Stripe
+
+API resources
+
+The Transactions API returns Document resource objects. A Document is a collection of transactions for an order or a donation. There's a 1:1 relationship between a Document and an order or donation.
+
+Document resources include information like:
+
+    Totals for an order or a donation, summing item sales, discounts, fees, shipping, taxes, and the grand total
+    Payments and payment types
+    Refunds
+    Payment gateway errors
+
+    Note: Only refunds initiated through Squarespace are captured and made available through the Transactions API.
+
+Resource fields are described under Response example for each Transactions API endpoint.
+
+Retrieve all transactions
+
+GET https://api.squarespace.com/{api-version}/commerce/transactions?modifiedAfter={a-datetime}&modifiedBefore={b-datetime}&cursor={c}
+
+Retrieves all financial transactions for orders and donations. Per order and donation, the response groups transactions into a Document, contains up to 50 Documents ordered by their modification date (modifiedOn), and supports dynamic cursors for pagination.
+
+Read the Overview to learn more about Documents.
+
+    Caution: createdOn and modifiedOn values from the Orders API should not be used to filter Documents.
+
+Parameters
+
+{api-version} string
+required
+
+See the Transactions API Overview page for the current API version.
+
+modifiedAfter={a-datetime} string
+optional
+
+Time-boxes the request to Documents that were modified after {a-datetime} where {a-datetime} is an ISO 8601 UTC date and time string, e.g. YYYY-MM-DDThh:mm:ss.sZ.
+
+modifiedBefore={b-datetime} string
+optional
+
+Time-boxes the request to Documents that were modified before {b-datetime} where {b-datetime} is an ISO 8601 UTC date and time string, e.g. YYYY-MM-DDThh:mm:ss.sZ.
+
+cursor={c} string
+optional
+
+Identifies where the next page of results should begin. {c} should be the value of pagination.nextPageCursor from a previous response. If this parameter is not present or empty, the endpoint returns up to 50 Documents.
+Request example
+
+Read the Making requests guide to learn why specific headers are necessary, and why some are omitted. Every request should also abide by Squarespace rate limits.
+
+curl "https://api.squarespace.com/1.0/commerce/transactions?modifiedAfter=2018-01-01T12:00:00Z&modifiedBefore=2019-01-15T14:30:00Z" \
+  -H "Authorization: Bearer YOUR_API_KEY_OR_OAUTH_TOKEN" \
+  -H "User-Agent: YOUR_CUSTOM_APP_DESCRIPTION"
+
+Response example
+
+A successful request generates a JSON response with an array of Documents and a pagination object.
+
+    Note: For easier reference between response fields and descriptions, comments were added in the example, though this makes the JSON invalid.
+
+{
+  // Array of Document resources. If the merchant site doesn't have
+  // any payment transactions for orders or donations, this array is empty.
+  "documents": [
+    {
+      // Unique Document id.
+      "id": "a7e4c6b5-d1fe-4e42-a932-f185b4b86829",
+      // ISO 8601 UTC date and time string; represents when the `Document` was created.
+      "createdOn": "2019-11-18T21:20:05.354Z",
+      // ISO 8601 UTC date and time string; represents when the `Document` was last modified.
+      "modifiedOn": "2019-11-18T21:23:02.870Z",
+      // Customer or donor email address. May be `null` for point of sales orders
+      // because email wasn't collected.
+      "customerEmail": "customer@squarespace.com",
+      // Unique order id; not applicable if payment transaction is a donation.
+      "salesOrderId": "5d71991aac180c3e7857e1df",
+      // Flag; indicates order cancellation.
+      "voided": false,
+      // Subtotal of all sales items for an order; "0.00" for a donation.
+      "totalSales": {
+        "currency": "USD",
+        "value": "150.00"
+      },
+      // `totalSales` minus all discounts for the order; "0.00" for a donation.
+      "totalNetSales": {
+        "currency": "USD",
+        "value": "145.00"
+      },
+      // Sum of all shipping charges excluding any shipping discounts
+      // or taxes; "0.00" for a donation.
+      "totalNetShipping": {
+        "currency": "USD",
+        "value": "5.95"
+      },
+      // Total of all order sales items and shipping taxes; "0.00" for a donation.
+      "totalTaxes": {
+        "currency": "USD",
+        "value": "15.00"
+      },
+      // For an order, this is the sum of all charges, taxes, and discounts.
+      // For a donation, this is the sum of all payments.
+      "total": {
+        "currency": "USD",
+        "value": "165.00"
+      },
+      // The order total minus all refunds and processing fees; "0.00" for a donation.
+      "totalNetPayment": {
+        "currency": "USD",
+        "value": "104.50"
+      },
+      // Array of payment transactions for the order or donation.
+      "payments": [
+        {
+          // Unique payment id.
+          "id": "ece69479-50bc-4763-9067-4473f3abcf83",
+          // The order or donation amount covered by this payment.
+          "amount": {
+            "currency": "USD",
+            "value": "120.00"
+          },
+          // The portion of the original amount that's been refunded for this payment.
+          "refundedAmount": {
+            "currency": "USD",
+            "value": "60.00"
+          },
+          // `amount` minus `refundedAmount`.
+          "netAmount": {
+            "currency": "USD",
+            "value": "60.00"
+          },
+          // Payment credit card type; possible values: `VISA`, `MASTERCARD`,
+          // `DISCOVER`, `AMEX`, `JCB`, and `OTHER`.
+          // `null` if credit card processing isn't available for the payment gateway.
+          "creditCardType": "VISA",
+          // Payment gateway used for processing.
+          // See the Transactions API Overview page for all possible values.
+          "provider": "STRIPE",
+          // Array of refunds for the payment transaction.
+          "refunds": [
+            {
+              // Unique refund id.
+              "id": "cfdb6b87-64bf-461a-b48b-eca7bd2389fc",
+              // Refund amount.
+              "amount": {
+                "currency": "USD",
+                "value": "60.00"
+              },
+              // ISO 8601 UTC date and time string; represents refund issue date.
+              "refundedOn": "2019-11-18T21:22:06.500Z",
+              // Unique id for the refund transaction provided by the payment gateway.
+              "externalTransactionId": "re_1Flhp8J4wh083J8f7qYtzU9m"
+            }
+          ],
+          // Array of processing fees associated with the payment.
+          "processingFees": [
+            {
+              // Unique processing fee id.
+              "id": "2Jdsno3mdk",
+              // Processing fee quoted in the payment's currency.
+              "amount": {
+                "currency": "USD",
+                "value": "1.00"
+              },
+              // Processing fee quoted in the payment gateway's currency.
+              "amountGatewayCurrency": {
+                "currency": "USD",
+                "value": "1.00"
+              },
+              // Foreign exchange rate between the payment gateway's and payment's
+              // currencies; determined when the payment is processed.
+              "exchangeRate": "1.0",
+              // Refunded processing fee quoted in the payment's currency.
+              "refundedAmount": {
+                "currency": "USD",
+                "value": "0.50"
+              },
+              // Refunded processing fee quoted in the payment gateway's currency.
+              "refundedAmountGatewayCurrency": {
+                "currency": "USD",
+                "value": "0.50"
+              },
+              // Processing fee minus fee refunds quoted in the payment's currency.
+              "netAmount": {
+                "currency": "USD",
+                "value": "0.50"
+              },
+              // Processing fee minus fee refunds quoted in the payment gateway's currency.
+              "netAmountGatewayCurrency": {
+                "currency": "USD",
+                "value": "0.50"
+              },
+              // Array of processing fee refunds for the payment.
+              "feeRefunds": [
+                {
+                  // Unique processing fee refund id.
+                  "id": "c413a46c-b3e8-426d-8e0f-a4bc7a18cdd0",
+                  // Processing fee refund quoted in the payment's currency.
+                  "amount": {
+                    "currency": "USD",
+                    "value": "0.50"
+                  },
+                  // Processing fee refund quoted in the payment gateway's currency.
+                  "amountGatewayCurrency": {
+                    "currency": "USD",
+                    "value": "0.50"
+                  },
+                  // Foreign exchange rate between the payment gateway's and payment's
+                  // currencies; determined when the payment is processed.
+                  "exchangeRate": "1.0",
+                  // ISO 8601 UTC date and time string; represents when the processing fee refund was issued.
+                  "refundedOn": "2019-11-18T21:22:06.500Z",
+                  // Unique id for the processing fee refund transaction provided by the payment gateway.
+                  "externalTransactionId": "3fjowGck2f"
+                }
+              ]
+            }
+          ],
+          // Unique id for a Squarespace gift card. Value is `null` if a gift card was not used.
+          "giftCardId": null,
+          // ISO 8601 UTC date and time string; represents when the payment was made.
+          "paidOn": "2019-09-05T23:24:09.845Z",
+          // Unique id for the payment transaction provided by the payment gateway.
+          "externalTransactionId": "ch_1FFCJCLMG4qggZ0BzchTZjwR",
+          // Array of properties for the payment transaction provided by the payment gateway.
+          // Properties are listed in key/value pairs.
+          "externalTransactionProperties": [],
+          // Unique customer id for the payment transaction provided by the payment gateway.
+          // Value is `null` if not available.
+          "externalCustomerId": null
+        }
+      ],
+      // Array of sales items for an order payment transaction; empty for donations.
+      "salesLineItems": [
+        {
+          // Unique id for the sales item.
+          "id": "d93f9637-fba6-4e8b-a1f3-24008f60c774",
+          // Discount applied to the sales item.
+          "discountAmount": {
+            "currency": "USD",
+            "value": "5.00"
+          },
+          // Sales item quantity multiplied by its unit price.
+          "totalSales": {
+            "currency": "USD",
+            "value": "150.00"
+          },
+          // `totalSales` minus `discountAmount`.
+          "totalNetSales": {
+            "currency": "USD",
+            "value": "145.00"
+          },
+          // Sum of `totalNetSales` and `taxes`.
+          "total": {
+            "currency": "USD",
+            "value": "160.00"
+          },
+          // Array of taxes for the sale item.
+          "taxes": [
+            {
+              // Tax amount.
+              "amount": {
+                "currency": "USD",
+                "value": "15.00"
+              },
+              // Tax rate as a percent. For example, a value of `7.00` is a 7% tax.
+              "rate": "10.00",
+              // Tax classification as defined by the Squarespace merchant.
+              "name": "Local Sales Tax",
+              // Tax jurisdiction in `COUNTRY:{value},STATE:{value},LOCAL:{value}` format.
+              // Examples: `COUNTRY:US`, `COUNTRY:US,STATE:NY`, and `COUNTRY:US,STATE:NY,LOCAL:10001`.
+              "jurisdiction": "COUNTRY:US,STATE:NY,LOCAL:10001"
+            }
+          ]
+        }
+      ],
+      // Array of discounts for an order payment transaction; empty for donations.
+      "discounts": [
+        {
+          // Discount description.
+          "description": "Discount description",
+          // Discount name.
+          "name": "Sales Discount",
+          // Discount amount.
+          "amount": {
+            "currency": "USD",
+            "value": "5.00"
+          }
+        }
+      ],
+      // Array of shipping line items.
+      "shippingLineItems": [
+        {
+          // Unique id for the shipping line item.
+          "id": "bd63d55e-0066-400e-9aa9-e75d4e6215b0",
+          // Shipping cost.
+          "amount": {
+            "currency": "USD",
+            "value": "5.95"
+          },
+          // Discount applied to this shipping line item.
+          "discountAmount": {
+            "currency": "USD",
+            "value": "0.00"
+          },
+          // `amount` minus `discountAmount`.
+          "netAmount": {
+            "currency": "USD",
+            "value": "5.95"
+          },
+          // Description of the shipping line item as defined by the Squarespace merchant.
+          "description": "USPS Flat Rate",
+          // Array of taxes for the shipping line item.
+          "taxes": [
+            {
+              // Tax amount.
+              "amount": {
+                "currency": "USD",
+                "value": "0.00"
+              },
+              // Tax rate as a percent. For example, a value of `7.00` is a 7% tax.
+              "rate": "0.00",
+              // Shipping tax name.
+              "name": "Shipping Tax",
+              // Shipping tax description.
+              "description": "Shipping Tax Description"
+            }
+          ]
+        }
+      ],
+      // Captures errors from the payment gateway; value is `null` if not applicable.
+      // See the Transactions API Overview page for other possible values.
+      "paymentGatewayError": null
+    }
+  ],
+  // Provides pagination details for iterating on
+  // payment transactions made through the merchant site.
+  "pagination": {
+    // Flag; indicates whether another page of data is available.
+    "hasNextPage": true,
+    // Cursor to use in a subsequent request; retrieves the next page of data.
+    "nextPageCursor": "IjUxYTQxYjM3LWQzNzUtNDAxYi1hMWJiLTc",
+    // A pre-built URL for applications to request the next page of data.
+    "nextPageUrl": "https://api.squarespace.com/1.0/commerce/transactions?cursor=IjUxYTQxYjM3LWQzNzUtNDAxYi1hMWJiLTc"
+  }
+}
+
+Status codes and error conditions
+
+200 OK
+
+The request was successful. The message body contains data in the format specified above.
+
+400 BAD REQUEST
+
+Type: INVALID_REQUEST_ERROR
+
+Subtype: null
+
+    The cursor parameter contains an invalid value.
+    modifiedAfter or modifiedBefore was specified without the other parameter.
+    modifiedAfter is not a valid ISO 8601 UTC date and time string.
+    modifiedBefore is not a valid ISO 8601 UTC date and time string.
+    modifiedBefore occurred before or at the same time as modifiedAfter.
+
+
+Retrieve specific transactions
+
+GET https://api.squarespace.com/{api-version}/commerce/transactions/{ids}
+
+Retrieves specific financial transactions for orders and donations. Per order and donation, the response groups transactions into a Document, and up to 50 Documents can be retrieved per request.
+
+Read the Overview to learn more about Documents.
+
+    Caution: The resource ids mentioned here are specific to Documents; do not use Order ids from the Orders API when retrieving Documents.
+
+Parameters
+
+{api-version} string
+required
+
+See the Transaction API Overview page for the current API version.
+
+{ids} string
+required
+
+Specifies the Documents to retrieve. Multiple Documents can be retrieved by providing a comma-separated list: {id1},{id2}..., though the same sequence is not guaranteed in the response.
+Request example
+
+Read the Making requests guide to learn why specific headers are necessary, and why some are omitted. Every request should also abide by Squarespace rate limits.
+
+curl "https://api.squarespace.com/1.0/commerce/transactions/123" \
+  -H "Authorization: Bearer YOUR_API_KEY_OR_OAUTH_TOKEN" \
+  -H "User-Agent: YOUR_CUSTOM_APP_DESCRIPTION"
+
+Response example
+
+A successful request generates a JSON response with an array of the requested Documents.
+
+    Note: For easier reference between response fields and descriptions, comments were added in the example, though this makes the JSON invalid.
+
+{
+  // Array of Document resources. If the merchant site doesn't have
+  // any payment transactions for orders or donations, this array is empty.
+  "documents": [
+    {
+      // Unique Document id.
+      "id": "a7e4c6b5-d1fe-4e42-a932-f185b4b86829",
+      // ISO 8601 UTC date and time string; represents when the `Document` was created.
+      "createdOn": "2019-11-18T21:20:05.354Z",
+      // ISO 8601 UTC date and time string; represents when the `Document` was last modified.
+      "modifiedOn": "2019-11-18T21:23:02.870Z",
+      // Customer or donor email address. May be `null` for point of sales orders
+      // because email wasn't collected.
+      "customerEmail": "customer@squarespace.com",
+      // Unique order id; not applicable if payment transaction is a donation.
+      "salesOrderId": "5d71991aac180c3e7857e1df",
+      // Flag; indicates order cancellation.
+      "voided": false,
+      // Subtotal of all sales items for an order; "0.00" for a donation.
+      "totalSales": {
+        "currency": "USD",
+        "value": "150.00"
+      },
+      // `totalSales` minus all discounts for the order; "0.00" for a donation.
+      "totalNetSales": {
+        "currency": "USD",
+        "value": "145.00"
+      },
+      // Sum of all shipping charges excluding any shipping discounts
+      // or taxes; "0.00" for a donation.
+      "totalNetShipping": {
+        "currency": "USD",
+        "value": "5.95"
+      },
+      // Total of all order sales items and shipping taxes; "0.00" for a donation.
+      "totalTaxes": {
+        "currency": "USD",
+        "value": "15.00"
+      },
+      // For an order, this is the sum of all charges, taxes, and discounts.
+      // For a donation, this is the sum of all payments.
+      "total": {
+        "currency": "USD",
+        "value": "165.00"
+      },
+      // The order total minus all refunds and processing fees; "0.00" for a donation.
+      "totalNetPayment": {
+        "currency": "USD",
+        "value": "104.50"
+      },
+      // Array of payment transactions for the order or donation.
+      "payments": [
+        {
+          // Unique payment id.
+          "id": "ece69479-50bc-4763-9067-4473f3abcf83",
+          // The order or donation amount covered by this payment.
+          "amount": {
+            "currency": "USD",
+            "value": "120.00"
+          },
+          // The portion of the original amount that's been refunded for this payment.
+          "refundedAmount": {
+            "currency": "USD",
+            "value": "60.00"
+          },
+          // `amount` minus `refundedAmount`.
+          "netAmount": {
+            "currency": "USD",
+            "value": "60.00"
+          },
+          // Payment credit card type; possible values: `VISA`, `MASTERCARD`,
+          // `DISCOVER`, `AMEX`, `JCB`, and `OTHER`.
+          // `null` if credit card processing isn't available for the payment gateway.
+          "creditCardType": "VISA",
+          // Payment gateway used for processing.
+          // See the Transactions API Overview page for all possible values.
+          "provider": "STRIPE",
+          // Array of refunds for the payment transaction.
+          "refunds": [
+            {
+              // Unique refund id.
+              "id": "cfdb6b87-64bf-461a-b48b-eca7bd2389fc",
+              // Refund amount.
+              "amount": {
+                "currency": "USD",
+                "value": "60.00"
+              },
+              // ISO 8601 UTC date and time string; represents refund issue date.
+              "refundedOn": "2019-11-18T21:22:06.500Z",
+              // Unique id for the refund transaction provided by the payment gateway.
+              "externalTransactionId": "re_1Flhp8J4wh083J8f7qYtzU9m"
+            }
+          ],
+          // Array of processing fees associated with the payment.
+          "processingFees": [
+            {
+              // Unique processing fee id.
+              "id": "2Jdsno3mdk",
+              // Processing fee quoted in the payment's currency.
+              "amount": {
+                "currency": "USD",
+                "value": "1.00"
+              },
+              // Processing fee quoted in the payment gateway's currency.
+              "amountGatewayCurrency": {
+                "currency": "USD",
+                "value": "1.00"
+              },
+              // Foreign exchange rate between the payment gateway's and payment's
+              // currencies; determined when the payment is processed.
+              "exchangeRate": "1.0",
+              // Refunded processing fee quoted in the payment's currency.
+              "refundedAmount": {
+                "currency": "USD",
+                "value": "0.50"
+              },
+              // Refunded processing fee quoted in the payment gateway's currency.
+              "refundedAmountGatewayCurrency": {
+                "currency": "USD",
+                "value": "0.50"
+              },
+              // Processing fee minus fee refunds quoted in the payment's currency.
+              "netAmount": {
+                "currency": "USD",
+                "value": "0.50"
+              },
+              // Processing fee minus fee refunds quoted in the payment gateway's currency.
+              "netAmountGatewayCurrency": {
+                "currency": "USD",
+                "value": "0.50"
+              },
+              // Array of processing fee refunds for the payment.
+              "feeRefunds": [
+                {
+                  // Unique processing fee refund id.
+                  "id": "c413a46c-b3e8-426d-8e0f-a4bc7a18cdd0",
+                  // Processing fee refund quoted in the payment's currency.
+                  "amount": {
+                    "currency": "USD",
+                    "value": "0.50"
+                  },
+                  // Processing fee refund quoted in the payment gateway's currency.
+                  "amountGatewayCurrency": {
+                    "currency": "USD",
+                    "value": "0.50"
+                  },
+                  // Foreign exchange rate between the payment gateway's and payment's
+                  // currencies; determined when the payment is processed.
+                  "exchangeRate": "1.0",
+                  // ISO 8601 UTC date and time string; represents when the processing fee refund was issued.
+                  "refundedOn": "2019-11-18T21:22:06.500Z",
+                  // Unique id for the processing fee refund transaction provided by the payment gateway.
+                  "externalTransactionId": "3fjowGck2f"
+                }
+              ]
+            }
+          ],
+          // Unique id for a Squarespace gift card. Value is `null` if a gift card was not used.
+          "giftCardId": null,
+          // ISO 8601 UTC date and time string; represents when the payment was made.
+          "paidOn": "2019-09-05T23:24:09.845Z",
+          // Unique id for the payment transaction provided by the payment gateway.
+          "externalTransactionId": "ch_1FFCJCLMG4qggZ0BzchTZjwR",
+          // Array of properties for the payment transaction provided by the payment gateway.
+          // Properties are listed in key/value pairs.
+          "externalTransactionProperties": [],
+          // Unique customer id for the payment transaction provided by the payment gateway.
+          // Value is `null` if not available.
+          "externalCustomerId": null
+        }
+      ],
+      // Array of sales items for an order payment transaction; empty for donations.
+      "salesLineItems": [
+        {
+          // Unique id for the sales item.
+          "id": "d93f9637-fba6-4e8b-a1f3-24008f60c774",
+          // Discount applied to the sales item.
+          "discountAmount": {
+            "currency": "USD",
+            "value": "5.00"
+          },
+          // Sales item quantity multiplied by its unit price.
+          "totalSales": {
+            "currency": "USD",
+            "value": "150.00"
+          },
+          // `totalSales` minus `discountAmount`.
+          "totalNetSales": {
+            "currency": "USD",
+            "value": "145.00"
+          },
+          // Sum of `totalNetSales` and `taxes`.
+          "total": {
+            "currency": "USD",
+            "value": "160.00"
+          },
+          // Array of taxes for the sale item.
+          "taxes": [
+            {
+              // Tax amount.
+              "amount": {
+                "currency": "USD",
+                "value": "15.00"
+              },
+              // Tax rate as a percent. For example, a value of `7.00` is a 7% tax.
+              "rate": "10.00",
+              // Tax classification as defined by the Squarespace merchant.
+              "name": "Local Sales Tax",
+              // Tax jurisdiction in `COUNTRY:{value},STATE:{value},LOCAL:{value}` format.
+              // Examples: `COUNTRY:US`, `COUNTRY:US,STATE:NY`, and `COUNTRY:US,STATE:NY,LOCAL:10001`.
+              "jurisdiction": "COUNTRY:US,STATE:NY,LOCAL:10001"
+            }
+          ]
+        }
+      ],
+      // Array of discounts for an order payment transaction; empty for donations.
+      "discounts": [
+        {
+          // Discount description.
+          "description": "Discount description",
+          // Discount name.
+          "name": "Sales Discount",
+          // Discount amount.
+          "amount": {
+            "currency": "USD",
+            "value": "5.00"
+          }
+        }
+      ],
+      // Array of shipping line items.
+      "shippingLineItems": [
+        {
+          // Unique id for the shipping line item.
+          "id": "bd63d55e-0066-400e-9aa9-e75d4e6215b0",
+          // Shipping cost.
+          "amount": {
+            "currency": "USD",
+            "value": "5.95"
+          },
+          // Discount applied to this shipping line item.
+          "discountAmount": {
+            "currency": "USD",
+            "value": "0.00"
+          },
+          // `amount` minus `discountAmount`.
+          "netAmount": {
+            "currency": "USD",
+            "value": "5.95"
+          },
+          // Description of the shipping line item as defined by the Squarespace merchant.
+          "description": "USPS Flat Rate",
+          // Array of taxes for the shipping line item.
+          "taxes": [
+            {
+              // Tax amount.
+              "amount": {
+                "currency": "USD",
+                "value": "0.00"
+              },
+              // Tax rate as a percent. For example, a value of `7.00` is a 7% tax.
+              "rate": "0.00",
+              // Shipping tax name.
+              "name": "Shipping Tax",
+              // Shipping tax description.
+              "description": "Shipping Tax Description"
+            }
+          ]
+        }
+      ],
+      // Captures errors from the payment gateway; value is `null` if not applicable.
+      // See the Transactions API Overview page for other possible values.
+      "paymentGatewayError": null
+    }
+  ]
+}
+
+Status codes and error conditions
+
+200 OK
+
+The request was successful. The message body contains data in the format specified above.
+
+400 BAD REQUEST
+
+Type: INVALID_REQUEST_ERROR
+
+Subtype: null
+ids specifies greater than 50 Documents.
+
+404 NOT FOUND
+
+Type: INVALID_REQUEST_ERROR
+
+Subtype: INVALID_ARGUMENT
+One or more requested Documents were not found.

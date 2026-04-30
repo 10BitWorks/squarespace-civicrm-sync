@@ -1,0 +1,406 @@
+Profiles API overview
+
+Current version: 1.0
+For versioning details, read the Upgrade guide.
+
+The Profiles API allows apps to retrieve Squarespace site users.
+
+A site user can be a customer, mailing list subscriber, or donor that are traditionally accessible through the Profiles panel.
+
+Site visitors become site users when they perform one of the following actions:
+
+    Registers an account with the site
+    Performs an e-commerce guest checkout or donation on the site
+    Subscribes to a newsletter or campaigns mailing list
+
+API resources
+
+The Profiles API allows for the retrieval of Profile resource objects. Every Profile contains information about a site user and has the following characteristics:
+
+    A unique email address
+    An approximate address for the user based on existing data (always generated internally, not created by the API)
+    A summary of the user's commerce transactions, such as orders or donations (generated asynchronously from the site)
+
+
+Retrieve all profiles
+
+GET https://api.squarespace.com/{api-version}/profiles/?cursor={c}&filter={f}&sortDirection={sd}&sortField={sf}
+
+Retrieves all profiles; profiles can be filtered and sorted.
+
+The response contains up to 50 Profiles and supports dynamic cursors for pagination. Read the Overview to learn more about Profiles.
+Parameters
+
+{api-version} string
+required
+
+See the Profiles API Overview page for the current API version.
+
+cursor={c} string
+conditional: cannot be used with other parameters
+
+Identifies where the next page of results should begin. {c} should be the value of pagination.nextPageCursor from a previous response. If this parameter is not present or empty, the endpoint returns up to 50 Profiles.
+
+filter={f} string
+optional; values include: isCustomer and/or hasAccount, or email
+The email filter cannot be used with isCustomer or hasAccount
+
+Semicolon separated list used to filter profile results:
+
+isCustomer: Value must be true; false currently not supported
+hasAccount: Value must be true; false currently not supported
+email: Valid email address with URL-encoded characters; case insensitive
+
+sortDirection={sd} string
+optional; values include: asc or dsc
+
+Identifies the sort direction of the result list; asc for ascending or dsc for descending.
+
+If parameter is not specified, the returned list is in descending order by sortField or by profile id if sortField is not specified.
+
+sortField={sf} string
+optional; values include: createdOn, id, email, or lastName
+
+Identifies the sort field of the result list:
+
+id: Unique id of a Profile
+lastName: Last name of a profile
+createdOn: ISO 8601 UTC date and time when a profile was created
+email: Email address of a profile
+
+If parameter is not specified, the returned list is sorted by id.
+
+Examples
+
+filter=isCustomer,true;hasAccount,true
+
+filter=hasAccount,true
+
+filter=isCustomer,true
+
+filter=email,test%40squarespace.com
+
+Request example
+
+Read the Making requests guide to learn why specific headers are necessary, and why some are omitted. Every request should also abide by Squarespace rate limits.
+
+curl "https://api.squarespace.com/1.0/profiles?sortField=email&sortDirection=asc&filter=isCustomer,true;hasAccount,true" \
+  -H "Authorization: Bearer YOUR_API_KEY_OR_OAUTH_TOKEN" \
+  -H "User-Agent: YOUR_CUSTOM_APP_DESCRIPTION"
+
+Response example
+
+A successful request generates a JSON response with an array of Profiles and a pagination object.
+
+    Note: For easier reference between response fields and descriptions, comments were added in the example, though this makes the JSON invalid.
+
+{
+  // Array of Profile resources. If the site doesn't have
+  // any Profile resources available, this array is empty.
+  "Profiles" : [ {
+    // Unique Profile id.
+    "id" : "5ede64464561317766bdc632",
+    // Profile first name.
+    "firstName" : "Gregory",
+    // Profile last name.
+    "lastName" : "Jones",
+    // Profile email address.
+    "email" : "gregory_jones@example.com",
+    // Indicates whether the profile has an account with the website.
+    "hasAccount" : false,
+    // Indicates whether the profile has any commerce orders or donations with the website.
+    "isCustomer" : true,
+    // ISO 8601 UTC date and time string; represents when the profile was created.
+    "createdOn" : "2020-06-08T16:16:06.573518Z",
+    // Profile’s address.
+    // An approximate address for the user based on existing data;
+    // it should not be used for shipping or billing purposes.
+    // Field is `null` if an approximate address can't be determined.
+    "address" : {
+      // Address first name.
+      "firstName" : "Gregory",
+      // Address last name. 
+      "lastName" : "Jones",
+      // Address line 1.
+      "address1" : "8 Clarkson Street",
+      // Address line 2.
+      "address2" : null,
+      // Address city.
+      "city" : "New York",
+      // Address state or region.
+      "state" : "NY",
+      // Address postal code.
+      "countryCode" : "US",
+      // ISO 3166 alpha-2 country code string.
+      "postalCode" : "10014",
+      // Address phone number.
+      "phone" : "5553334444"
+    },
+    // Indicates whether the profile opted to receive marketing.
+    "acceptsMarketing" : false,
+    // Summary of profile’s commerce transactions.
+    // If a profile has no commerce transactions, the object is still returned with `null` or `0` values.
+    // This information is calculated asynchronously; there may be a slight delay between 
+    // when an order is created, and when it's reflected in the object. 
+    "transactionsSummary" : {
+      // ISO 8601 UTC date and time string; represents when the profile’s first order was submitted.
+      "firstOrderSubmittedOn" : "2020-06-04T10:46:05.245Z",
+      // ISO 8601 UTC date and time string; represents when the profile’s latest order was submitted.
+      "lastOrderSubmittedOn" : "2020-06-04T10:46:05.245Z",
+      // Count of orders submitted.
+      "orderCount" : 4,
+      // Grand total of all orders.
+      "totalOrderAmount" : {
+        // Monetary amount with 1,000,000 limit and no markers for the dollar amount. 
+        // Conforms to the selected ISO currency's precision. 
+        // (E.g., JPY uses 123, but USD uses 123.00 or 123.)
+        "value" : "674.00",
+        // ISO 4217 currency code string.
+        "currency" : "USD"
+      },
+      // Total of all order refunds.
+      "totalRefundAmount" : {
+        // Monetary amount with 1,000,000 limit and no markers for the dollar amount. 
+        // Conforms to the selected ISO currency's precision. 
+        // (E.g., JPY uses 123, but USD uses 123.00 or 123.)
+        "value" : "45.00",
+        // ISO 4217 currency code string.
+        "currency" : "USD"
+      },
+      // ISO 8601 UTC date and time string; represents when the profile’s first donation was submitted.
+      "firstDonationSubmittedOn" : null,
+      // ISO 8601 UTC date and time string; represents when the profile’s latest donation was submitted.
+      "lastDonationSubmittedOn" : null,
+      // Count of donations submitted.
+      "donationCount" : 1,
+      // Grand total of all donations.
+      "totalDonationAmount" : {
+        // Monetary amount with 1,000,000 limit and no markers for the dollar amount. 
+        // Conforms to the selected ISO currency's precision. 
+        // (E.g., JPY uses 123, but USD uses 123.00 or 123.)
+        "value" : "10.00",
+        // ISO 4217 currency code string.
+        "currency" : "USD"
+      }
+    }
+  }, {
+    "id" : "5fc7b8f18b4dc33dc818aeba",
+    "firstName" : "Janice",
+    "lastName" : "Jones",
+    "email" : "janice.jones@example.com",
+    "hasAccount" : false,
+    "isCustomer" : false,
+    "createdOn" : "2020-12-02T15:55:29.013064Z",
+    "address" : null,
+    "acceptsMarketing" : true,
+    "transactionsSummary" : {
+      "firstOrderSubmittedOn" : null,
+      "lastOrderSubmittedOn" : null,
+      "orderCount" : 0,
+      "totalOrderAmount" : null,
+      "totalRefundAmount" : null,
+      "firstDonationSubmittedOn" : null,
+      "lastDonationSubmittedOn" : null,
+      "donationCount" : 0,
+      "totalDonationAmount" : null
+    }
+  } ],
+  // Provides pagination details for iterating on
+  // the Profiles available for the site.
+  "pagination": {
+    // A pre-built URL for applications to request the next page of data.
+    "nextPageUrl":  "https://api.squarespace.com/1.0/profiles?cursor=ewogICJpIiA6ICIwMDAwMDAwMC01ZDhjLWVkNDUtZmQyZi02Y2M2ZjUwOGM2YzciLAogICJmIiA6ICJpZCIsCiAgInYiIDogIjAwMDAwMDAwLTVkOGMtZWQ0NS1mZDJmLTZjYzZmNTA4YzZjNyIsCiAgInMiIDogNTAsCiAgInAiIDogMywKICAibiIgOiB0cnVlCn0",
+    // Cursor to use in a subsequent request; retrieves the next page of data.
+    "nextPageCursor": "ewogICJpIiA6ICIwMDAwMDAwMC01ZDhjLWVkNDUtZmQyZi02Y2M2ZjUwOGM2YzciLAogICJmIiA6ICJpZCIsCiAgInYiIDogIjAwMDAwMDAwLTVkOGMtZWQ0NS1mZDJmLTZjYzZmNTA4YzZjNyIsCiAgInMiIDogNTAsCiAgInAiIDogMywKICAibiIgOiB0cnVlCn0",
+    // Flag; indicates whether another page of data is available.
+    "hasNextPage": true
+  }
+}
+
+Status codes and error conditions
+
+200 OK
+
+The request was successful. The message body contains data in the format specified above.
+
+400 BAD REQUEST
+
+Type: INVALID_REQUEST_ERROR
+
+Subtype: null
+
+    cursor, sortDirection, sortField, or filter parameter contains an invalid value.
+    cursor parameter was specified with other request parameters.
+
+400 BAD REQUEST
+
+Type: INVALID_REQUEST_ERROR
+
+Subtype: INVALID_ARGUMENT
+In the filter parameter, email was specified with another filter.
+
+Retrieve specific profiles
+
+GET api.squarespace.com/{api-version}/profiles/{ids}
+
+Retrieves information for specific profiles.
+
+The response contains profile information in a Profile and up to 50 Profiles. Read the Overview to learn more about this resource.
+Parameters
+
+{api-version} string
+required
+
+See the Profiles API Overview page for the current API version.
+
+{ids} string
+required
+
+Specifies the profiles to retrieve.
+
+Multiple Profiles can be retrieved by providing a comma-separated list of profile ids: {id1},{id2}..., though the same sequence is not guaranteed in the response.
+Request example
+
+Read the Making requests guide to learn why specific headers are necessary, and why some are omitted. Every request should also abide by Squarespace rate limits.
+
+curl "https://api.squarespace.com/1.0/profiles/5fc7b8f18b4dc33dc818aeba,5ede64464561317766bdc632" \
+  -H "Authorization: Bearer YOUR_API_KEY_OR_OAUTH_TOKEN" \
+  -H "User-Agent: YOUR_CUSTOM_APP_DESCRIPTION"
+
+Response example
+
+A successful request generates a JSON response with an array of the requested Profiles.
+
+    Note: For easier reference between response fields and descriptions, comments were added in the example, though this makes the JSON invalid.
+
+{
+  // Array of Profile resources.
+  // If the site doesn't have any user profiles, this array is empty.
+  "profiles" : [ {
+    // Unique Profile id.
+    "id" : "5ede64464561317766bdc632",
+    // Profile first name.
+    "firstName" : "Gregory",
+    // Profile last name.
+    "lastName" : "Jones",
+    // Profile email address.
+    "email" : "gregory_jones@example.com",
+    // Indicates whether the profile has an account with the website.
+    "hasAccount" : false,
+    // Indicates whether the profile has any commerce orders or donations with the website.
+    "isCustomer" : true,
+    // ISO 8601 UTC date and time string; represents when the profile was created.
+    "createdOn" : "2020-06-08T16:16:06.573518Z",
+    // Profile’s address.
+    // An approximate address for the user based on existing data;
+    // it should not be used for shipping or billing purposes.
+    // Field is `null` if an approximate address can't be determined.
+    "address" : {
+      // Address first name.
+      "firstName" : "Gregory",
+      // Address last name. 
+      "lastName" : "Jones",
+      // Address line 1.
+      "address1" : "450 North End Avenue",
+      // Address line 2.
+      "address2" : null,
+      // Address city.
+      "city" : "New York",
+      // Address state or region.
+      "state" : "NY",
+      // Address postal code.
+      "countryCode" : "US",
+      // ISO 3166 alpha-2 country code string.
+      "postalCode" : "10282",
+      // Address phone number.
+      "phone" : "5553334444"
+    },
+    // Indicates whether the profile opted to receive marketing.
+    "acceptsMarketing" : false,
+    // Summary of profile’s commerce transactions.
+    // If a profile has no commerce transactions, the object is still returned with `null` or `0` values.
+    // This information is calculated asynchronously; there may be a slight delay between 
+    // when an order is created, and when it's reflected in the object.
+    "transactionsSummary" : {
+      // ISO 8601 UTC date and time string; represents when the profile’s first order was submitted.
+      "firstOrderSubmittedOn" : "2020-06-04T10:46:05.245Z",
+      // ISO 8601 UTC date and time string; represents when the profile’s latest order was submitted.
+      "lastOrderSubmittedOn" : "2020-06-04T10:46:05.245Z",
+      // Count of orders submitted.
+      "orderCount" : 4,
+      // Grand total of all orders.
+      "totalOrderAmount" : {
+        // Monetary amount with 1,000,000 limit and no markers for the dollar amount. 
+        // Conforms to the selected ISO currency's precision. 
+        // (E.g., JPY uses 123, but USD uses 123.00 or 123.)
+        "value" : "674.00",
+        // ISO 4217 currency code string.
+        "currency" : "USD"
+      },
+      // Total of all order refunds.
+      "totalRefundAmount" : {
+        // Monetary amount with 1,000,000 limit and no markers for the dollar amount. 
+        // Conforms to the selected ISO currency's precision. 
+        // (E.g., JPY uses 123, but USD uses 123.00 or 123.)
+        "value" : "45.00",
+        // ISO 4217 currency code string.
+        "currency" : "USD"
+      },
+      // ISO 8601 UTC date and time string; represents when the profile’s first donation was submitted.
+      "firstDonationSubmittedOn" : null,
+      // ISO 8601 UTC date and time string; represents when the profile’s latest donation was submitted.
+      "lastDonationSubmittedOn" : null,
+      // Count of donations submitted.
+      "donationCount" : 1,
+      // Grand total of all donations.
+      "totalDonationAmount" : {
+        // Monetary amount with 1,000,000 limit and no markers for the dollar amount. 
+        // Conforms to the selected ISO currency's precision. 
+        // (E.g., JPY uses 123, but USD uses 123.00 or 123.)
+        "value" : "10.00",
+        // ISO 4217 currency code string.
+        "currency" : "USD"
+      }
+    }
+  }, {
+    "id" : "5fc7b8f18b4dc33dc818aeba",
+    "firstName" : "Janice",
+    "lastName" : "Jones",
+    "email" : "janice.jones@example.com",
+    "hasAccount" : false,
+    "isCustomer" : false,
+    "createdOn" : "2020-12-02T15:55:29.013064Z",
+    "address" : null,
+    "acceptsMarketing" : true,
+    "transactionsSummary" : {
+      "firstOrderSubmittedOn" : null,
+      "lastOrderSubmittedOn" : null,
+      "orderCount" : 0,
+      "totalOrderAmount" : null,
+      "totalRefundAmount" : null,
+      "firstDonationSubmittedOn" : null,
+      "lastDonationSubmittedOn" : null,
+      "donationCount" : 0,
+      "totalDonationAmount" : null
+    }
+  } ]
+}
+
+Status codes and error conditions
+
+200 OK
+
+The request was successful. The message body contains data in the format specified above.
+
+400 BAD REQUEST
+
+Type: INVALID_REQUEST_ERROR
+
+Subtype: null
+ids specifies greater than 50 profiles.
+
+404 NOT FOUND
+
+Type: INVALID_REQUEST_ERROR
+
+Subtype: INVALID_ARGUMENT

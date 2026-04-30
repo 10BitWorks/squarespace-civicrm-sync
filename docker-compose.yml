@@ -1,0 +1,12 @@
+services:
+  sync:
+    build: .
+    container_name: squarespace-civicrm-sync
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - SYNC_INTERVAL=900
+    volumes:
+      - ./cache:/app/cache
+      - ./.last_sync_timestamp:/app/.last_sync_timestamp
+      - ./.last_successful_email:/app/.last_successful_email

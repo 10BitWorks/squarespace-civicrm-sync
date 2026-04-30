@@ -1,0 +1,352 @@
+Overview of Commerce APIs
+
+With Squarespace Commerce APIs, you can build applications to manage the commerce features of a Squarespace merchant site.
+
+Inventory API: Read and adjust stock information for product variants.
+
+Orders API: Access order history for one-time purchases and subscription orders or import orders from third-party sales channels.
+
+Products API: Manage physical products, including their variants and images.
+
+Profiles API: Retrieve customers, mailing list subscribers, and donors that are traditionally accessible through the Profiles panel.
+
+Transactions API: Access financial transactions for orders and donations.
+
+Webhook Subscriptions API: Subscribe to notifications from a site, like when an order was created, by configuring a webhook endpoint.
+Structure and design
+
+All Commerce APIs are built on HTTPS and designed with REST principles in mind. Every endpoint uses HTTPS features such as authentication, standard verbs, and standard response status codes. In addition, APIs that support resource updates via POST allow partial updates.
+
+Authentication for Commerce APIs also provides permissions to keep Squarespace merchant site data private and secure.
+Next steps
+
+    Become familiar with commerce terms and how they're related to the APIs
+    Learn how to send authenticated requests
+    Read the FAQ for answers to common questions
+    Read our brand guidelines
+
+
+Authentication and permissions
+
+To keep Squarespace merchant site data private and secure, every request to Commerce APIs must be authenticated and have minimum permissions. However, authenticated requests automatically have access to public site data, such as site name, identifier, language, currency, time zone, and location.
+
+Read the permission levels for each Commerce API below. Then, depending on your development needs, authenticate requests by using an API key or OAuth access token.
+
+    Remember: Requests only have access to data for the website that owns the API key or OAuth access token.
+
+API permission levels
+
+Forms API
+
+    Read Only: View form submission data; for Zapier integration only
+
+Inventory API
+
+    Read Only: View inventory stock levels
+    Read and Write: Manage inventory stock levels
+
+Orders API
+
+    Read Only: View order, fulfillment, and customer information (name, email, address, and more)
+    Read and Write: View customer information (name, email, address, and more); manage order and fulfillment information
+
+Products API
+
+    Read Only: View product information, including information for any images and variants; view Store Page information
+    Read and Write: Manage product information, including information for any images and variants; view Store Page information
+
+Profiles API
+
+    Read Only: View the name, address, email, marketing preferences, and other profile information of customers, subscribers, and other website users
+
+Transactions API
+
+    Read Only: View transactional order, donation data, and customer information (email)
+
+Authenticating requests
+
+Depending on your development needs, you can use a generated API key or start the OAuth process with Squarespace to become a registered OAuth client. A Squarespace merchant site can use both API keys and OAuth for data access, but Squarespace Extensions are required to use OAuth.
+Custom applications
+
+With Squarespace's Commerce Advanced plan, you can develop a custom application for a Squarespace merchant site.
+
+Follow the steps below to generate an API key for a custom application.
+
+    Log in to a Squarespace site.
+    In the left nav, click Settings; scroll down and click Advanced.
+    Click Developer API Keys.
+    Click the GENERATE KEY button.
+    In the dialog, add a key name under "KEY NAME", and select one or more Commerce APIs under "PERMISSIONS" and permission level.
+    Record the generated key in a safe and secure place.
+
+For security reasons, this is the only time the API key is visible. API keys will never expire as long as the merchant site remains active.
+Commercial development
+
+Squarespace Extensions allow customers on any plan to optimize and expand their site in a few clicks. If you'd like to develop a new Extension, start the OAuth client process by filling out this form. Once you've obtained OAuth credentials, you can use our OAuth 2.0 Guide to learn how to authorize your application to integrate with Squarespace and use Squarespace APIs.
+Next steps
+
+    Make requests to Commerce APIs
+    Read the FAQ for answers to common questions
+    Read our brand guidelines
+
+
+Making requests to Commerce APIs
+
+In three steps, you can send a successful request to any Commerce API to manage numerous commerce features of any Squarespace merchant site.
+
+Inventory: Read and adjust stock information for product variants.
+
+Orders: Access order history for one-time purchases and subscription orders or import orders from third-party sales channels.
+
+Products: Manage physical products, including their variants and images.
+
+Profiles: Read and manage customers, mailing list subscribers, and donors that are traditionally accessible through the Profiles panel.
+
+Transactions: Access financial transactions for orders and donations.
+
+Webhook Subscriptions API: Subscribe to notifications from a site, like when an order was created, by configuring a webhook endpoint.
+1. Generate an API key or start the OAuth process
+
+If you don't have an API key or are a registered OAuth client already, read the Authentication and permissions guide.
+2. Format your request headers
+
+For a successful request, every Commerce API request must use the headers and URL format shown below. The current version number for each API is located on the API's overview page. To learn more about versioning, read the Upgrade guide.
+
+    Caution: All requests sent over HTTP instead of HTTPS are rejected.
+
+curl "https://api.squarespace.com/{api-version}/{resource-path}" \
+  -H "Authorization: Bearer YOUR_API_KEY_OR_OAUTH_TOKEN" \
+  -H "User-Agent: YOUR_CUSTOM_APP_DESCRIPTION" \
+
+  // Add a Content-Type header when making requests with a body.
+  -H "Content-Type: application/json"
+
+Recommendations
+
+Accept header: it's okay to use one, but not necessary
+Although an Accept header is conventional in HTTPS requests, it's not necessary as Commerce APIs support JSON responses only.
+
+User-Agent header: it's okay to use default values for testing, but not recommended
+Default values for User-Agent are often injected by HTTP client applications (e.g."User-Agent: curl/7.54.0"). Although they're okay to use, doing so may be subject to stricter rate limiting. Requests without a User-Agent header are rejected.
+3. Start making requests
+
+Read the endpoint documentation for any APIs you want to use and then start to make requests! But, ensure all requests abide by Squarespace rate limits.
+
+All APIs responses are formatted in JSON and use standard status and error codes. Response codes are listed for every endpoint.
+
+Retrieve basic site information
+
+GET https://api.squarespace.com/{api-version}/authorization/website
+
+Websites on Squarespace can have many API keys or OAuth tokens, though a given API key or OAuth token can only belong to one website. Use the Authorization API endpoint to identify which website is associated with an API key or OAuth token. The response provides basic site information to aid in development when using Commerce APIs.
+
+Parameters
+
+{api-version} string
+required
+
+The current version for the Authorization API is 1.0.
+
+Request example
+
+curl "https://api.squarespace.com/1.0/authorization/website" \
+  -i \
+  -H "Authorization: Bearer YOUR_SECRET_API_KEY" \
+  -H "User-Agent: YOUR_PRODUCT / YOUR_PRODUCT_VERSION" \
+  -H "Content-Type: application/json"
+
+If you're new to Commerce APIs, read the Making requests guide to learn more about how to access this endpoint.
+
+Response example
+
+A successful request generates a response in JSON.
+
+{
+  // Id of the website that owns the API key or OAuth.
+  "id": "5863f6faf7e0abc3cf95ce3a",
+
+  // Identifier, or subdomain, of the website within squarespace.com.
+  "siteId": "developers",
+
+  // The website's title.
+  "title": "Squarespace Developers",
+
+  // The website's canonical URL, which specifies the website's custom domain when available.
+  "url": "https://developers.squarespace.com",
+
+  // The currency the website uses for commerce needs.
+  // Configured in "Commerce > Payments".
+  "currency": "USD",
+
+  // The measurement standard the website uses for commerce needs, such as product dimensions.
+  // Possible values are 'IMPERIAL' and 'METRIC'.
+  // Configured in "Settings > Language & Region" in the Squarespace UI.
+  "measurementStandard": "METRIC",
+
+  // An ISO language and country code associated with the website.
+  // This doesn't reflect the language shown to users in the Squarespace UI.
+  // Configured in "Settings > Language & Region" in the Squarespace UI.
+  "language": "en-US",
+
+  // The time zone associated with the website.
+  // Configured in "Settings > Language & Region" in the Squarespace UI.
+  "timeZone": "America/New_York",
+
+  // Physical business location information associated with the website;
+  // object doesn't include street address nor name of the business.
+  // Configured in "Settings > Business Information" in the Squarespace UI.
+  "location": {
+      "region": "New York, NY, 10014",
+      "country": "United States"
+  }
+}
+
+Idempotency-Key header
+
+Certain requests should only occur once in an event of a client, server, or network error. For example, adjusting the stock quantity for an item. That's why some Commerce API endpoints require an Idempotency-Key header.
+
+By using the same Idempotency-Key and parameters, a request may be retried multiple times though it will only be executed on the first successful attempt. Every subsequent request receives the same response.
+Specifications
+
+    A unique string consisting of up to 64 alphanumeric characters, dashes, and underscores; UUIDs are valid and common.
+    Keys are recycled after an unspecified interval, however, they're guaranteed effective for 48 hours from the time they're used successfully.
+
+Endpoints
+
+The Commerce API endpoints listed below require an Idempotency-Key header.
+Inventory API
+
+    POST: Adjust stock quantities
+
+Orders API
+
+    POST: Create an order
+
+
+Squarespace Commerce APIs employ a rate limit of 300 requests per minute, an equivalent bandwidth of five requests per second. Requests over the rate limit receive a 429 Too Many Requests response with a cool down period of one minute.
+
+In addition, the Create Order endpoint has a separate, stricter rate limit of 100 requests per hour, per website when an API Key is used for authentication. For clarity, this stricter rate limit does not apply when OAuth is used for authentication.
+
+Responses and error handling
+
+Commerce APIs always return a response body in JSON. Ordering of the response data is not guaranteed to be in a specific order unless explicitly stated on the API reference page.
+
+All documented fields are always present in a response body, even if the field's value is null. Array fields that contain no data can either be represented as a null value or an empty array ([]). Please make sure you can handle either possibility.
+Error objects
+
+All response errors include a standard error object. Each field is always present, but values may be null as indicated.
+
+{
+  // General purpose descriptor for the type of the error.
+  // The possible values are documented for each endpoint.
+  "type": "INVALID_REQUEST_ERROR",
+
+  // A descriptor for the subtype of the error, when available.
+  // The possible values are documented for each endpoint.
+  // This field is nullable.
+  "subtype": "MISSING_ARGUMENT",
+
+  // A plain English message intended for developers for debugging purposes.
+  // This value should not be displayed to an end-user.
+  "message": "An expiration date is required.",
+
+  // Machine-readable data for generating user-friendly error messages;
+  // intended for developers and users alike.
+  // Reserved for future use; always `null` at this time.
+  "details": { ... },
+
+  // Provides an identifier for reporting issues to Squarespace Customer Care.
+  // Use the form below to report any occurrences of `5xx` range
+  // errors, and please be sure to reference this id.
+  // Form: https://support.squarespace.com/hc/requests/new#choose-topic
+  "contextId": "RUPSUSPOW"
+}
+
+Status codes and error conditions
+
+In general, Commerce APIs use standard HTTP response codes as listed below. Though each endpoint also supports additional statuses, consult endpoint documentation for further details.
+2xx: Successful requests
+
+200 OK The request was processed successfully and any expected data is present in the response body.
+
+201 Created A new resource was created and is present in the response body.
+
+202 Accepted The request was received, is being processed, and any expected data is present in the response body.
+
+204 No Content The request was processed successfully and no data is present in the response body.
+4xx: Client errors
+
+Codes in the 4xx range indicate that something is wrong with your request or that your request cannot be completed due to a conflicting state that can be avoided through further action. The information you receive in the response provides some level of detail to help you debug the issue.
+
+400 Bad Request The request failed due to one or more causes of a bad query parameter, malformed body, or the body referencing an unknown system resource.
+
+401 Unauthorized The request failed due to unexpected authorization header information, which may be caused by a missing header or that the provided token was invalid or expired.
+
+402 Payment Required The request failed because the website that owns the authorization token is expired.
+
+403 Forbidden The request failed because the provided token does not have sufficient permissions.
+
+404 Not Found The requested resource could not be found.
+
+405 Method Not Allowed The request attempted to access a resource using an unsupported HTTP method.
+
+409 Conflict The request could not be processed due to the state of the server at the time of the request. This can be due to a variety of circumstances, such as concurrent requests competing for the same resource, a system configuration option prevents the request from being processed, or other state-specific causes. Depending on the cause, conflicts may be resolved by waiting for resources to become available or by updating the state of the system to enable the original request to succeed.
+
+429 Too Many Requests The application has issued too many requests and may be able to issue new requests after a cool down period. Refer to the rate limiting guidelines for more information.
+5xx: Server errors
+
+Any errors in the 5xx range indicate a problem happened with Squarespace's servers. Please report the issue and include the contextId you received in the response.
+
+Note: 5xx errors are sometimes caused by transient network faults meaning that a subsequent request will succeed when retried after a delay. For this reason, we recommend implementing a retry strategy using exponential backoff and halting execution after an appropriate number of attempts.
+
+Commerce API upgrades
+
+Each Commerce API has an independent version number, where the current version number is listed on an API's overview page. Versions are specified in request URIs per the following format.
+
+Format
+
+https://api.squarespace.com/{api-version}/{resource-path}
+
+Example
+
+https://api.squarespace.com/1.0/commerce/orders
+
+Backward-compatible changes are embedded in existing API versions. These changes are non-breaking and are meant to resolve practical issues that may be found in existing APIs, as well as enable new use cases in the form of new data fields.
+
+    Note: On occasion, new resource fields are added to Commerce APIs to expose additional data. Keep this in mind during development so an application doesn't break for new fields.
+
+Breaking changes
+
+Breaking changes are only introduced in a new, numbered version, and don't affect existing integrations. For example, version 1.2 would introduce some breaking changes to version 1.1.
+Legacy API versions
+
+Squarespace supports legacy API versions for a long time. Supported legacy versions will be documented per API, including the information you'll need to upgrade your applications quickly.
+
+
+Glossary
+
+When developing with Commerce APIs, it's helpful to know Squarespace Commerce terms and how they're used by merchants and the APIs.
+Inventory
+
+    A collection of products configured for a Squarespace merchant site.
+    A Squarespace merchant may use "inventory" in the following ways:
+
+    To refer to the Commerce > Inventory page in the Squarespace UI. This page lists every product that's been configured for a merchant site.
+    To refer to the quantity of an item, for example, "The inventory for this product is running low."
+
+    With respect to the Inventory API, an "inventory item" is any variant of a configured product that supports stock tracking, which is a feature of physical and service products.
+
+Product
+
+A sellable item on a Squarespace merchant site, which may be sold as variations (or "variants"). Multiple product types are supported for a Squarespace store including physical goods, services, gift cards, downloads, and subscriptions.
+Product variant
+
+A variant of a product sold on a Squarespace merchant site.
+For example, a bakery may sell Pies and Cookies, where "Key Lime" and "Pecan" are variants of Pies and "Chocolate Chip" and "Oatmeal Raisin" are variants of Cookies.
+Stock keeping unit (SKU)
+
+A user-defined code assigned for the purpose of identifying a product variant.
+
+SKUs help merchants keep track of product quantities and identify the variant of a product customers purchase. Squarespace merchants are not required to keep unique SKUs across all of their products, however, SKUs for variants of the same product must be unique.
+
+

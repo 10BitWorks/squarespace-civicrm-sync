@@ -1,0 +1,16 @@
+Individual Monthly Recurring Membership: SQ9402840, 10BIT-1M-1P, SQ6118029, 10BIT-1M-1P, 10bitmonthly1p
+
+Individual One-time One-month Membership (Gift): Gift22
+
+Individual One-time One-day membership: 10BIT-1D-1P
+
+Household Monthly Recurring Membership: SQ1141182, SQ6105885
+
+Business Monthly Recurring Membership: SQ1596472
+
+
+
+Note that some orders, such as for SKU 10BIT-1M-1P, have only two order fields: the name and phone of an emergency contact. A separate Name and Phone for the member is not provided here, so the billing contact must be used. 
+
+All others ask for a personal name, personal phone, emergency name and emergency phone in the order details, as seen in `orders.example.json`. The personal name and phone entered here should be used for the member's Contact if it differes from the billing contact info.
+
