@@ -308,7 +308,18 @@ console.log('Starting Squarespace to CiviCRM sync...');
 
 // Main run function (exported so other scripts can call it)
 export async function runSync(opts?: { singleEmail?: string; apply?: boolean; forceFull?: boolean; opencollective?: boolean; dryRun?: boolean }) {
-  const syncStartTime = new Date().toISOString();
+  // Lock File Protection
+  const fsSync = require('fs');
+  if (fsSync.existsSync(SYNC_LOCK_FILE)) {
+    console.warn(`[!] SKIP: Sync already in progress (Lock file ${SYNC_LOCK_FILE} exists).`);
+    return;
+  }
+
+  // Create lock
+  fsSync.writeFileSync(SYNC_LOCK_FILE, process.pid.toString());
+
+  try {
+    const syncStartTime = new Date().toISOString();
   let lastSync = await readLastSyncTimestamp();
   if (opts && opts.forceFull) {
     console.log('Force full sync requested for this run; ignoring last sync timestamp.');
@@ -1169,7 +1180,12 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
     await writeLastSyncTimestamp(syncStartTime);
     console.log(`Sync complete. Timestamp updated to ${syncStartTime}`);
   } else {
-    console.log('Preview mode: no timestamp written.');
+    }
+  } finally {
+    const fsSync = require('fs');
+    if (fsSync.existsSync(SYNC_LOCK_FILE)) {
+      try { fsSync.unlinkSync(SYNC_LOCK_FILE); } catch {}
+    }
   }
 }
 
@@ -1182,35 +1198,6 @@ if (require.main === module) {
     dryRun: args.includes('--dry-run'),
     singleEmail: args.find(a => a.startsWith('--single-email='))?.split('=')[1]
   };
-
-  /**
-   * Lock File Protection
-   * Prevents multiple instances of the sync from running simultaneously.
-   */
-  const fsSync = require('fs');
-  if (fsSync.existsSync(SYNC_LOCK_FILE)) {
-    console.error(`\n[!] ABORT: Sync already in progress (Lock file ${SYNC_LOCK_FILE} exists).`);
-    console.error(`If you are sure no other sync is running, delete ${SYNC_LOCK_FILE} and try again.\n`);
-    process.exit(1);
-  }
-
-  // Create lock
-  fsSync.writeFileSync(SYNC_LOCK_FILE, process.pid.toString());
-  
-  // Ensure lock is removed on exit
-  const cleanup = () => {
-    if (fsSync.existsSync(SYNC_LOCK_FILE)) {
-      try { fsSync.unlinkSync(SYNC_LOCK_FILE); } catch {}
-    }
-  };
-
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => { process.exit(); });
-  process.on('SIGTERM', () => { process.exit(); });
-  process.on('uncaughtException', (e) => {
-    console.error('Uncaught Exception:', e);
-    process.exit(1);
-  });
 
   runSync(options).catch(error => {
     console.error('\nScript finished with an error.');
