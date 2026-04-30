@@ -92,7 +92,7 @@ async function syncOrders() {
       }
 
     } catch (err) {
-      console.error(`\nError processing ${email}:`, err.message);
+      console.error(`\nError processing ${email}:`, (err as any).message);
     }
   }
   process.stdout.write('\n');

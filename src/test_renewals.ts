@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { CiviCRM } from './src/civicrm';
+import { CiviCRM } from './civicrm';
 
 dotenv.config();
 
