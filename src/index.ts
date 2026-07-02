@@ -1001,8 +1001,10 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
             }
           }
         }
+      }
+      // --- End Donation/Emergency Contact Processing ---
 
-        // --- Ensure contributions exist for all other purchases (non-membership, non-donation products)
+      // --- Ensure contributions exist for all other purchases (non-membership, non-donation products)
         for (const transaction of customerTransactions) {
           if (!transaction.payments || transaction.payments.length === 0) continue;
           const order = transaction.salesOrderId ? await getCachedSquarespaceOrderById(transaction.salesOrderId) : null;
@@ -1052,7 +1054,6 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
             fee_amount: feeAmount || undefined,
             non_deductible_amount: nonDeductibleAmount,
           });
-          console.log(`${progress} Ensured contribution exists for product transaction ${transaction.id}.`);
           console.log(`${progress} Ensured contribution exists for product transaction ${transaction.id}.`);
         }
 
@@ -1128,7 +1129,6 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
             }
           }
         }
-      }
       // If we got here, the customer was processed successfully.
       await writeLastSuccessfulEmail(email);
 
