@@ -23,3 +23,6 @@ test_*.mjs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Examples with PII
+help/squarespace/*.json
