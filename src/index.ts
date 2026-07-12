@@ -318,6 +318,14 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
   // Create lock
   fsSync.writeFileSync(SYNC_LOCK_FILE, process.pid.toString());
 
+  let stopRequested = false;
+  const signalHandler = () => {
+    console.log('\n[!] Graceful shutdown requested. Finishing current customer then exiting...');
+    stopRequested = true;
+  };
+  process.on('SIGINT', signalHandler);
+  process.on('SIGTERM', signalHandler);
+
   try {
     const syncStartTime = new Date().toISOString();
   let lastSync = await readLastSyncTimestamp();
@@ -484,6 +492,10 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
   }
 
   for (let i = startIndex; i < totalCustomers; i++) {
+    if (stopRequested) {
+      console.log('\nStopping sync early due to shutdown request.');
+      break;
+    }
     const email = customerEmails[i];
     customerCount = i + 1;
     const customerTransactions = transactionsByCustomer[email].sort((a, b) => new Date(a.createdOn).getTime() - new Date(b.createdOn).getTime());
@@ -1183,6 +1195,8 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
   } else {
     }
   } finally {
+    process.removeListener('SIGINT', signalHandler);
+    process.removeListener('SIGTERM', signalHandler);
     const fsSync = require('fs');
     if (fsSync.existsSync(SYNC_LOCK_FILE)) {
       try { fsSync.unlinkSync(SYNC_LOCK_FILE); } catch {}
