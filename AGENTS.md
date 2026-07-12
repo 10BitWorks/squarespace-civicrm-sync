@@ -36,3 +36,7 @@
 
 ## Membership Billing Model
 - **Squarespace Billing Cycle**: Squarespace memberships are based on **30-day recurring orders**, not calendar months. The `computeMembershipEndDate` logic should align with this — do not assume calendar-month boundaries.
+
+### AuthX APIv4 Authentication
+- **Mistake**: Using the legacy header format `'X-Civi-Api-Key': 'Bearer <key>'`. Modern CiviCRM instances with the AuthX extension silently reject this, downgrading the request to an anonymous session. While read operations might seem to succeed but return no results, write operations (`Contact::save`) will throw a `403 Forbidden` error.
+- **Recovery**: Use the standard `'Authorization': 'Bearer <key>'` header pattern. This ensures proper authentication as the sync user and grants full APIv4 access.
