@@ -821,7 +821,7 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
 
         } else {
           // New implementation using Order API for proper financial linkage
-          console.log(`${progress} No existing membership found. Creating a new one via Order API.`);
+          console.log(`${progress} No existing CiviCRM membership for this period. Syncing via Order API.`);
           
           let localMembershipId: number | undefined = undefined;
           let isFirst = true;
@@ -846,15 +846,20 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
             });
 
             if (isFirst && orderResult.values?.[0]) {
-              // After the first Order.create, find the membership ID that was created
+              // After the first Order.create, find the membership ID that was created/found
               const contributionId = orderResult.values[0].id;
+              const wasCreated = orderResult.created !== false;
               const lineItems = await civicrm.apiRequest('LineItem', 'get', {
                 where: [['contribution_id', '=', contributionId], ['entity_table', '=', 'civicrm_membership']],
                 select: ['entity_id']
               });
               if (lineItems.values?.[0]) {
                 localMembershipId = lineItems.values[0].entity_id;
-                console.log(`${progress} Created Membership ID: ${localMembershipId} linked to Contribution: ${contributionId}`);
+                if (wasCreated) {
+                  console.log(`${progress} Created Membership ID: ${localMembershipId} linked to Contribution: ${contributionId}`);
+                } else {
+                  console.log(`${progress} Contribution ${contributionId} already exists (trxn_id duplicate). Linked to Membership ID: ${localMembershipId}. Skipping.`);
+                }
               }
               
               if (localMembershipId) {
@@ -1007,7 +1012,7 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
                 if (emergencyContactId) {
                   const relationshipTypeId = await civicrm.getRelationshipTypeId('Emergency Contact Of');
                   await civicrm.saveRelationship(contactId, emergencyContactId, relationshipTypeId);
-                  console.log(`${progress} Saved emergency contact relationship for ${emergencyContactName}.`);
+                  console.log(`${progress} Upserted emergency contact relationship for ${emergencyContactName}.`);
                 }
               }
               processedEmergencyContacts.add(ecIdentifier); // Mark as processed
