@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      - SYNC_INTERVAL=43200
+      - SYNC_INTERVAL=600
       - PORT=3000
     ports:
       - "3000:3000"
