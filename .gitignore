@@ -8,9 +8,8 @@
 
 # Sync State & Cache
 /cache
+/state
 .sync.lock
-.last_sync_timestamp
-.last_successful_email
 
 # Development Scripts
 scripts/

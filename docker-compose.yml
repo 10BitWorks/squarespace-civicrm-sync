@@ -11,5 +11,4 @@ services:
       - "3000:3000"
     volumes:
       - ./cache:/app/cache
-      - ./.last_sync_timestamp:/app/.last_sync_timestamp
-      - ./.last_successful_email:/app/.last_successful_email
+      - ./state:/app/state
