@@ -7,6 +7,7 @@ dotenv.config();
 
 const CIVICRM_API_URL = process.env.CIVICRM_API_URL;
 const CIVICRM_API_KEY = process.env.CIVICRM_API_KEY;
+const CIVICRM_SITE_KEY = process.env.CIVICRM_SITE_KEY;
 
 export class CiviCRM {
   private preview: boolean = false;
@@ -22,19 +23,21 @@ export class CiviCRM {
     let url: string;
     let body: string;
 
-    const headers = {
+    const headers: Record<string, string> = {
       'Authorization': `Bearer ${CIVICRM_API_KEY}`,
       'Content-Type': 'application/x-www-form-urlencoded',
       'X-Requested-With': 'XMLHttpRequest',
       'Accept': 'application/json',
     };
 
+    if (CIVICRM_SITE_KEY) {
+      headers['X-Civi-Key'] = CIVICRM_SITE_KEY;
+    }
+
     // Based on CiviCRM source code (CRM/Api4/Page/AJAX.php and js/crm.ajax.js),
     // the server expects form-urlencoded data with a JSON-stringified payload.
-    // We also add the 'authx' parameter to perform all actions on behalf of the Squarespace contact.
     const requestData = {
       params: JSON.stringify(params),
-      authx: JSON.stringify({ 'on-behalf-of': 2511 }),
     };
 
     if (action === 'get' || action === 'create' || action === 'update' || action === 'save' || action === 'delete') {
@@ -63,7 +66,7 @@ export class CiviCRM {
           if (match && match[1]) {
             console.error('Server Error:', match[1].trim());
           } else {
-             console.error('Server returned an HTML error page instead of JSON. This often indicates a fatal server-side error. Please check your CiviCRM and web server logs for the full error message.');
+            console.error('Server returned an HTML error page instead of JSON. This often indicates a fatal server-side error. Please check your CiviCRM and web server logs for the full error message.');
           }
         } else {
           console.error('Data:', error.response.data);
@@ -78,15 +81,22 @@ export class CiviCRM {
   }
 
   public async getContactByEmail(email: string): Promise<CiviCRMContact | null> {
-    const result = await this.apiRequest('Contact', 'get', {
-      select: ['id', 'first_name', 'last_name', 'external_identifier', 'contact_email.email', 'created_date'],
-      join: [['Email AS contact_email']],
-      where: [['contact_email.email', '=', email]],
+    const emailResult = await this.apiRequest('Email', 'get', {
+      select: ['contact_id'],
+      where: [['email', '=', email]],
       limit: 1,
     });
 
-    if (result && result.count > 0) {
-      return result.values[0];
+    if (emailResult && emailResult.count > 0) {
+      const contactId = emailResult.values[0].contact_id;
+      const result = await this.apiRequest('Contact', 'get', {
+        select: ['id', 'first_name', 'last_name', 'external_identifier', 'created_date'],
+        where: [['id', '=', contactId]],
+        limit: 1,
+      });
+      if (result && result.count > 0) {
+        return result.values[0];
+      }
     }
 
     return null;
@@ -94,7 +104,7 @@ export class CiviCRM {
 
   // Parse a US phone string, extracting extension if present. Returns the
   // digits-only national number (last 10 digits) and the extension (if any).
-  private parsePhoneAndExtension(phone: string): {national?: string; extension?: string} {
+  private parsePhoneAndExtension(phone: string): { national?: string; extension?: string } {
     if (!phone) return {};
     // Remove common separators and detect extension patterns like 'x123', 'ext 123', '#123'
     const extMatch = /(?:ext(?:ension)?|x|#)\s*[:\-\.\s]*?(\d{1,6})$/i.exec(phone.trim());
@@ -119,33 +129,38 @@ export class CiviCRM {
     const last10 = parsed.national;
     const normalized = `+1${last10}`;
 
-    // Try exact normalized match first
-    let result = await this.apiRequest('Contact', 'get', {
-      select: ['id', 'first_name', 'last_name', 'external_identifier', 'created_date', 'contact_phone.phone'],
-      join: [['Phone AS contact_phone']],
-      where: [['contact_phone.phone', '=', normalized]],
+    let phoneResult = await this.apiRequest('Phone', 'get', {
+      select: ['contact_id'],
+      where: [['phone', '=', normalized]],
       limit: 1,
     });
-    if (result && result.count > 0) return result.values[0];
+    
+    if (!phoneResult || phoneResult.count === 0) {
+      phoneResult = await this.apiRequest('Phone', 'get', {
+        select: ['contact_id'],
+        where: [['phone', '=', last10]],
+        limit: 1,
+      });
+    }
 
-    // Try last-10-digit exact match
-    result = await this.apiRequest('Contact', 'get', {
-      select: ['id', 'first_name', 'last_name', 'external_identifier', 'created_date', 'contact_phone.phone'],
-      join: [['Phone AS contact_phone']],
-      where: [['contact_phone.phone', '=', last10]],
-      limit: 1,
-    });
-    if (result && result.count > 0) return result.values[0];
+    if (!phoneResult || phoneResult.count === 0) {
+      phoneResult = await this.apiRequest('Phone', 'get', {
+        select: ['contact_id'],
+        where: [['phone', 'LIKE', `%${last10}`]],
+        orderBy: { 'id': 'DESC' },
+        limit: 1,
+      });
+    }
 
-    // As a last resort, try a LIKE search for the trailing 10 digits
-    result = await this.apiRequest('Contact', 'get', {
-      select: ['id', 'first_name', 'last_name', 'external_identifier', 'created_date', 'contact_phone.phone'],
-      join: [['Phone AS contact_phone']],
-      where: [['contact_phone.phone', 'LIKE', `%${last10}`]],
-      orderBy: { 'contact_phone.phone': 'DESC' },
-      limit: 1,
-    });
-    if (result && result.count > 0) return result.values[0];
+    if (phoneResult && phoneResult.count > 0) {
+      const contactId = phoneResult.values[0].contact_id;
+      const contactResult = await this.apiRequest('Contact', 'get', {
+        select: ['id', 'first_name', 'last_name', 'external_identifier', 'created_date'],
+        where: [['id', '=', contactId]],
+        limit: 1,
+      });
+      if (contactResult && contactResult.count > 0) return contactResult.values[0];
+    }
 
     return null;
   }
@@ -334,7 +349,7 @@ export class CiviCRM {
         match: ['contact_id', 'phone'],
       }];
     }
-    
+
     const params: any = {
       records: [contactRecord],
       chain: chain,
@@ -426,7 +441,7 @@ export class CiviCRM {
       this.financialTypeIdCache[name] = id;
       return id;
     }
-            throw new Error(`Could not find the "${name}" Financial Type in CiviCRM.`);
+    throw new Error(`Could not find the "${name}" Financial Type in CiviCRM.`);
   }
 
   private membershipTypeIdCache: { [name: string]: number } = {};
@@ -471,16 +486,16 @@ export class CiviCRM {
       const uniqueKey = `squarespace-renewal-for-contribution-${contributionIdForDedup}`;
 
       const existingActivity = await this.apiRequest('Activity', 'get', {
-          select: ['id'],
-          where: [['details', '=', uniqueKey]],
-          limit: 1,
+        select: ['id'],
+        where: [['details', '=', uniqueKey]],
+        limit: 1,
       });
 
       if (existingActivity && existingActivity.count > 0) {
         // console.log(`Renewal activity for contribution ${contributionIdForDedup} already exists. Skipping.`);
         return { ...existingActivity, created: false };
       }
-      
+
       // Add the unique key to the payload before creating.
       activity.details = uniqueKey;
       // Also save the proper source_record_id for data integrity, even though we don't query on it.
@@ -554,40 +569,52 @@ export class CiviCRM {
 
       // Find the most recent 'Membership Signup' activity for the target contact.
       // This is presumed to be the one CiviCRM just created automatically.
-      const existingActivity = await this.apiRequest('Activity', 'get', {
+      const activityContacts = await this.apiRequest('ActivityContact', 'get', {
+        select: ['activity_id'],
+        where: [
+          ['contact_id', '=', contactId],
+          ['record_type_id', '=', 3], // 3 = Activity Targets
+        ],
+        orderBy: { 'id': 'DESC' },
+        limit: 20,
+      });
+      
+      let existingActivity = null;
+      if (activityContacts && activityContacts.count > 0) {
+        const activityIds = activityContacts.values.map((v: any) => v.activity_id);
+        existingActivity = await this.apiRequest('Activity', 'get', {
           select: ['id', 'activity_date_time'],
-          join: [['ActivityContact AS activity_contact']],
           where: [
-              ['activity_contact.contact_id', '=', contactId],
-              ['activity_contact.record_type_id', '=', 3], // 3 = Activity Targets
-              ['activity_type_id', '=', membershipSignupActivityTypeId],
+            ['id', 'IN', activityIds],
+            ['activity_type_id', '=', membershipSignupActivityTypeId],
           ],
           orderBy: { activity_date_time: 'DESC' },
           limit: 1,
-      });
+        });
+      }
 
       if (existingActivity && existingActivity.count > 0) {
-          const activityId = existingActivity.values[0].id;
-          const activityDate = new Date(existingActivity.values[0].activity_date_time);
-          const now = new Date();
-          const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const activityId = existingActivity.values[0].id;
+        const activityDate = new Date(existingActivity.values[0].activity_date_time);
+        const now = new Date();
+        const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
 
-          // As a safeguard, only update the activity if it was created in the last 5 minutes.
-          if (now.getTime() - activityDate.getTime() > fiveMinutes) {
-            console.warn(`The latest 'Membership Signup' activity for contact ${contactId} (ID: ${activityId}) is older than 5 minutes. It might not be the correct one to update for membership ${membershipId}. Skipping back-dating.`);
-            return;
-          }
+        // As a safeguard, only update the activity if it was created in the last 5 minutes.
+        if (now.getTime() - activityDate.getTime() > fiveMinutes) {
+          console.warn(`The latest 'Membership Signup' activity for contact ${contactId} (ID: ${activityId}) is older than 5 minutes. It might not be the correct one to update for membership ${membershipId}. Skipping back-dating.`);
+          return;
+        }
 
-          console.log(`Found default membership activity (ID: ${activityId}) for contact ${contactId}. Back-dating it.`);
-          return this.apiRequest('Activity', 'update', {
-              where: [['id', '=', activityId]],
-              values: {
-                  activity_date_time: newDate,
-                  source_contact_id: sourceContactId,
-              },
-          });
+        console.log(`Found default membership activity (ID: ${activityId}) for contact ${contactId}. Back-dating it.`);
+        return this.apiRequest('Activity', 'update', {
+          where: [['id', '=', activityId]],
+          values: {
+            activity_date_time: newDate,
+            source_contact_id: sourceContactId,
+          },
+        });
       } else {
-          console.warn(`Could not find a default "Membership Signup" activity for contact ID ${contactId} to link with membership ID ${membershipId}.`);
+        console.warn(`Could not find a default "Membership Signup" activity for contact ID ${contactId} to link with membership ID ${membershipId}.`);
       }
     } catch (error) {
       console.error('Error while trying to backdate membership activity:', error);
@@ -611,7 +638,7 @@ export class CiviCRM {
     const memberships = await this.getMembershipsForContact(contact_id);
     if (!memberships || memberships.length <= 1) return [];
 
-    const toDateOnly = (d: string) => new Date(`${d.slice(0,10)}T00:00:00`);
+    const toDateOnly = (d: string) => new Date(`${d.slice(0, 10)}T00:00:00`);
     // Sort by start_date ascending for checking overlaps
     const withDates = memberships
       .filter((m: any) => m.start_date && m.end_date)
@@ -679,7 +706,7 @@ export class CiviCRM {
       subject: params.subject || typeName,
       status_id: 2, // Completed
       source_record_id: params.membershipId,
-      source_contact_id: 2511, // Sync User
+      source_contact_id: process.env.CIVICRM_SYNC_USER_ID ? parseInt(process.env.CIVICRM_SYNC_USER_ID, 10) : 5, // Sync User
     };
 
     // Link contact as target
@@ -696,7 +723,7 @@ export class CiviCRM {
         link_source: ['ActivityContact', 'create', {
           values: {
             activity_id: '$id',
-            contact_id: 2511, // Sync User
+            contact_id: process.env.CIVICRM_SYNC_USER_ID ? parseInt(process.env.CIVICRM_SYNC_USER_ID, 10) : 5, // Sync User
             record_type_id: 2, // Source
           }
         }]
@@ -868,8 +895,8 @@ export class CiviCRM {
 
     // 2) Try contact+activity type+date based heuristics
     const activityTypeIds: number[] = [];
-    try { activityTypeIds.push(await this.getActivityTypeId('Membership Signup')); } catch (e) {}
-    try { activityTypeIds.push(await this.getActivityTypeId('Membership Renewal')); } catch (e) {}
+    try { activityTypeIds.push(await this.getActivityTypeId('Membership Signup')); } catch (e) { }
+    try { activityTypeIds.push(await this.getActivityTypeId('Membership Renewal')); } catch (e) { }
 
     const where: any[] = [];
     where.push(['activity_contact.contact_id', '=', contactId]);
@@ -883,7 +910,7 @@ export class CiviCRM {
     try {
       const found = await this.apiRequest('Activity', 'get', {
         select: ['id', 'activity_type_id', 'activity_date_time', 'details'],
-        join: [['ActivityContact AS activity_contact']],
+        join: [['ActivityContact AS activity_contact', 'LEFT', ['id', '=', 'activity_contact.activity_id']]],
         where,
         orderBy: { activity_date_time: 'DESC' },
       });
