@@ -42,4 +42,4 @@
 - **Recovery**: Use the standard `'Authorization': 'Bearer <key>'` header pattern. This ensures proper authentication as the sync user and grants full APIv4 access.
 
 ## Webhooks
-- **Automatic Registration**: When deployed (e.g. on Coolify), the application should automatically register its own webhook URL on startup using the Squarespace Webhook Subscriptions API. This is triggered by the presence of the `SERVICE_URL_APP` environment variable.
+- **Automatic Registration**: When deployed (e.g. on Coolify), the application should automatically register its own webhook URL on startup using the Squarespace Webhook Subscriptions API. This is triggered by the presence of the `SERVICE_URL_SYNC` environment variable.

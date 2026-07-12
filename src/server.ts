@@ -65,8 +65,8 @@ async function registerSquarespaceWebhook(serviceUrl: string) {
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 
-  if (process.env.SERVICE_URL_APP) {
-    registerSquarespaceWebhook(process.env.SERVICE_URL_APP).catch(console.error);
+  if (process.env.SERVICE_URL_SYNC) {
+    registerSquarespaceWebhook(process.env.SERVICE_URL_SYNC).catch(console.error);
   }
   
   // Set up periodic polling (default twice per day = every 12 hours)
