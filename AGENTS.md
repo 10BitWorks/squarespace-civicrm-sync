@@ -40,3 +40,6 @@
 ### AuthX APIv4 Authentication
 - **Mistake**: Using the legacy header format `'X-Civi-Api-Key': 'Bearer <key>'`. Modern CiviCRM instances with the AuthX extension silently reject this, downgrading the request to an anonymous session. While read operations might seem to succeed but return no results, write operations (`Contact::save`) will throw a `403 Forbidden` error.
 - **Recovery**: Use the standard `'Authorization': 'Bearer <key>'` header pattern. This ensures proper authentication as the sync user and grants full APIv4 access.
+
+## Webhooks
+- **Automatic Registration**: When deployed (e.g. on Coolify), the application should automatically register its own webhook URL on startup using the Squarespace Webhook Subscriptions API. This is triggered by the presence of the `SERVICE_URL_APP` environment variable.
