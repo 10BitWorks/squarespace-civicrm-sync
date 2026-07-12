@@ -42,4 +42,4 @@
 - **Recovery**: Use the standard `'Authorization': 'Bearer <key>'` header pattern. This ensures proper authentication as the sync user and grants full APIv4 access.
 
 ## Webhooks
-- **Automatic Registration**: When deployed (e.g. on Coolify), the application should automatically register its own webhook URL on startup using the Squarespace Webhook Subscriptions API. This is triggered by the presence of the `SERVICE_URL_SYNC` environment variable.
+- **Automatic Registration**: The `registerSquarespaceWebhook` function in `src/server.ts` exists but is currently **disabled** (commented out). Squarespace's Webhook Subscriptions API requires a full OAuth access token — a plain API key is rejected with `OAUTH_TOKEN_REQUIRED`. Re-enable this only once OAuth is implemented. In the meantime, the server relies on periodic polling (`SYNC_INTERVAL`).

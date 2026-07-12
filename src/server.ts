@@ -65,9 +65,11 @@ async function registerSquarespaceWebhook(serviceUrl: string) {
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 
-  if (process.env.SERVICE_URL_SYNC) {
-    registerSquarespaceWebhook(process.env.SERVICE_URL_SYNC).catch(console.error);
-  }
+  // NOTE: Squarespace Webhook Subscriptions API requires a full OAuth token, not a simple API key.
+  // Auto-registration is disabled until OAuth is implemented.
+  // if (process.env.SERVICE_URL_SYNC) {
+  //   registerSquarespaceWebhook(process.env.SERVICE_URL_SYNC).catch(console.error);
+  // }
   
   // Set up periodic polling (default twice per day = every 12 hours)
   const intervalSeconds = parseInt(process.env.SYNC_INTERVAL || '43200');
