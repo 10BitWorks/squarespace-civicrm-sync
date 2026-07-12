@@ -960,42 +960,43 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
           if (emergencyContactName) {
             const ecIdentifier = `${emergencyContactName}|${emergencyContactPhone || ''}`;
 
-            // Check if the emergency contact is the person themselves (case-insensitive)
-            const selfContact = emergencyContactName.trim().toLowerCase() === `${firstName} ${lastName}`.trim().toLowerCase();
+            if (!processedEmergencyContacts.has(ecIdentifier)) {
+              // Check if the emergency contact is the person themselves (case-insensitive)
+              const selfContact = emergencyContactName.trim().toLowerCase() === `${firstName} ${lastName}`.trim().toLowerCase();
 
-            if (selfContact && emergencyContactPhone) {
-              console.log(`${progress} Emergency contact is the person themselves. Adding phone to their record.`);
-              await civicrm.savePhone(contactId, emergencyContactPhone);
-              processedEmergencyContacts.add(ecIdentifier); // Mark as processed to avoid re-adding the phone
-            } else if (!processedEmergencyContacts.has(ecIdentifier)) {
-              const nameParts = emergencyContactName.split(' ');
-              const ecFirstName = titleCase(nameParts.shift() || '');
-              const ecLastName = titleCase(nameParts.join(' '));
-              const ecProfile: SquarespaceProfile = {
-                // Don't assign an external identifier for emergency contacts.
-                id: '',
-                firstName: ecFirstName,
-                lastName: ecLastName,
-                email: null, phone: emergencyContactPhone, address: null, createdOn: transaction.createdOn,
-                hasAccount: false, isCustomer: false, acceptsMarketing: false,
-              };
+              if (selfContact && emergencyContactPhone) {
+                console.log(`${progress} Emergency contact is the person themselves. Adding phone to their record.`);
+                await civicrm.savePhone(contactId, emergencyContactPhone);
+              } else {
+                const nameParts = emergencyContactName.split(' ');
+                const ecFirstName = titleCase(nameParts.shift() || '');
+                const ecLastName = titleCase(nameParts.join(' '));
+                const ecProfile: SquarespaceProfile = {
+                  // Don't assign an external identifier for emergency contacts.
+                  id: '',
+                  firstName: ecFirstName,
+                  lastName: ecLastName,
+                  email: null, phone: emergencyContactPhone, address: null, createdOn: transaction.createdOn,
+                  hasAccount: false, isCustomer: false, acceptsMarketing: false,
+                };
 
-              // Try to locate an existing emergency contact by phone or name before creating.
-              let ecExisting = null;
-              if (emergencyContactPhone) {
-                ecExisting = await civicrm.getContactByPhone(emergencyContactPhone);
-              }
-              if (!ecExisting) {
-                ecExisting = await civicrm.getContactByName(ecFirstName, ecLastName);
-              }
+                // Try to locate an existing emergency contact by phone or name before creating.
+                let ecExisting = null;
+                if (emergencyContactPhone) {
+                  ecExisting = await civicrm.getContactByPhone(emergencyContactPhone);
+                }
+                if (!ecExisting) {
+                  ecExisting = await civicrm.getContactByName(ecFirstName, ecLastName);
+                }
 
-              const ecSaveResult = await civicrm.saveContact(ecProfile, ecExisting || undefined);
-              const emergencyContactId = ecSaveResult.values[0].id;
+                const ecSaveResult = await civicrm.saveContact(ecProfile, ecExisting || undefined);
+                const emergencyContactId = ecSaveResult.values[0].id;
 
-              if (emergencyContactId) {
-                const relationshipTypeId = await civicrm.getRelationshipTypeId('Emergency Contact Of');
-                await civicrm.saveRelationship(contactId, emergencyContactId, relationshipTypeId);
-                console.log(`${progress} Saved emergency contact relationship for ${emergencyContactName}.`);
+                if (emergencyContactId) {
+                  const relationshipTypeId = await civicrm.getRelationshipTypeId('Emergency Contact Of');
+                  await civicrm.saveRelationship(contactId, emergencyContactId, relationshipTypeId);
+                  console.log(`${progress} Saved emergency contact relationship for ${emergencyContactName}.`);
+                }
               }
               processedEmergencyContacts.add(ecIdentifier); // Mark as processed
             }
