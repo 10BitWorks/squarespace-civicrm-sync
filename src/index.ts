@@ -20,15 +20,15 @@ const SKU_TO_MEMBERSHIP_TYPE: { [sku: string]: string } = {
 };
 
 const PRICE_FIELD_VALUE_MAP: { [sku: string]: number } = {
-  'SQ9402840': 22, // Individual Membership
-  '10BIT-1M-1P': 22,
-  'SQ6118029': 22,
-  '10bitmonthly1p': 22,
-  'SQ1141182': 23, // Household Membership
-  'SQ6105885': 23,
-  'SQ1596472': 24, // Business Membership
-  'SQ_SINGLE_DAY': 22, // Fallback for single day
-  'SINGLE-DAY-1': 22,
+  'SQ9402840': 2, // Individual Membership
+  '10BIT-1M-1P': 2,
+  'SQ6118029': 2,
+  '10bitmonthly1p': 2,
+  'SQ1141182': 3, // Household Membership
+  'SQ6105885': 3,
+  'SQ1596472': 4, // Business Membership
+  'SQ_SINGLE_DAY': 2, // Fallback for single day
+  'SINGLE-DAY-1': 2,
 };
 
 const SPECIAL_CASE_SKUS = new Set(['10BIT-1M-1P']);
@@ -46,6 +46,15 @@ const FULL_SYNC_CACHE_FILE = `${CACHE_DIR}/squarespace-transactions-full.json`;
 const ORDERS_FULL_CACHE_FILE = `${CACHE_DIR}/squarespace-orders-full.json`;
 const PROFILES_FULL_CACHE_FILE = `${CACHE_DIR}/squarespace-profiles-full.json`;
 const SYNC_LOCK_FILE = '.sync.lock';
+
+// Ensure necessary directories exist before script runs
+const fsSync = require('fs');
+if (!fsSync.existsSync('state')) {
+  fsSync.mkdirSync('state', { recursive: true });
+}
+if (!fsSync.existsSync('cache')) {
+  fsSync.mkdirSync('cache', { recursive: true });
+}
 
 interface SquarespaceTransactionsResponse {
   documents: SquarespaceTransaction[];
@@ -311,8 +320,25 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
   // Lock File Protection
   const fsSync = require('fs');
   if (fsSync.existsSync(SYNC_LOCK_FILE)) {
-    console.warn(`[!] SKIP: Sync already in progress (Lock file ${SYNC_LOCK_FILE} exists).`);
-    return;
+    try {
+      const pidStr = fsSync.readFileSync(SYNC_LOCK_FILE, 'utf-8').trim();
+      const pid = parseInt(pidStr, 10);
+      if (pid && !isNaN(pid)) {
+        // Test if process is still alive. process.kill(pid, 0) throws an error if it's dead.
+        process.kill(pid, 0);
+        console.warn(`[!] SKIP: Sync already in progress (Lock file ${SYNC_LOCK_FILE} exists and PID ${pid} is active).`);
+        return;
+      }
+    } catch (e: any) {
+      // If process.kill throws ESRCH, the process is dead. We can safely remove the lock.
+      if (e.code === 'ESRCH') {
+        console.warn(`[!] Stale lock file detected (PID is dead). Removing ${SYNC_LOCK_FILE}.`);
+        fsSync.unlinkSync(SYNC_LOCK_FILE);
+      } else {
+        console.warn(`[!] SKIP: Sync already in progress (Could not verify PID status: ${e.message}).`);
+        return;
+      }
+    }
   }
 
   // Create lock
