@@ -811,26 +811,32 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
 
             if (orderResult.values?.[0]) {
               const contributionId = orderResult.values[0].id;
-              console.log(`${progress} Saved renewed contribution ${contributionId} for transaction ${transaction.id}.`);
+              const wasCreated = orderResult.created !== false;
+              
+              if (wasCreated) {
+                console.log(`${progress} Saved renewed contribution ${contributionId} for transaction ${transaction.id}.`);
 
-              // Incrementally update end date to trigger renewal logic/logs
-              const intermediateEndDate = await computeMembershipEndDate(civicrm, transaction.createdOn, period.membershipTypeId, period.sku);
-              if (intermediateEndDate) {
-                await civicrm.saveMembership({
-                  id: existingMembership.id,
-                  end_date: intermediateEndDate,
-                  is_override: false,
+                // Incrementally update end date to trigger renewal logic/logs
+                const intermediateEndDate = await computeMembershipEndDate(civicrm, transaction.createdOn, period.membershipTypeId, period.sku);
+                if (intermediateEndDate) {
+                  await civicrm.saveMembership({
+                    id: existingMembership.id,
+                    end_date: intermediateEndDate,
+                    is_override: false,
+                  });
+                }
+
+                // Record the renewal activity for dashboard summary
+                await civicrm.recordMembershipActivity({
+                  membershipId: existingMembership.id,
+                  contactId: contactId,
+                  activityType: 'Renewal',
+                  date: transaction.createdOn,
+                  subject: `Squarespace Renewal (Order #${order?.orderNumber || transaction.id})`,
                 });
+              } else {
+                console.log(`${progress} Contribution ${contributionId} already exists for transaction ${transaction.id}. Skipping renewal activity.`);
               }
-
-              // Record the renewal activity for dashboard summary
-              await civicrm.recordMembershipActivity({
-                membershipId: existingMembership.id,
-                contactId: contactId,
-                activityType: 'Renewal',
-                date: transaction.createdOn,
-                subject: `Squarespace Renewal (Order #${order?.orderNumber || transaction.id})`,
-              });
             }
           }
 
@@ -888,7 +894,7 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
                 }
               }
               
-              if (localMembershipId) {
+              if (localMembershipId && wasCreated) {
                 // Recording signup activity for the dashboard summary
                 await civicrm.recordMembershipActivity({
                   membershipId: localMembershipId,
@@ -900,25 +906,28 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
               }
 
             } else if (localMembershipId) {
-              // Incrementally update end date to trigger renewal logic/logs for subsequent payments
-              const intermediateEndDate = await computeMembershipEndDate(civicrm, transaction.createdOn, period.membershipTypeId, period.sku);
-              if (intermediateEndDate) {
-                await civicrm.saveMembership({
-                  id: localMembershipId,
-                  end_date: intermediateEndDate,
-                  is_override: false,
+              const wasCreated = orderResult.created !== false;
+              if (wasCreated) {
+                // Incrementally update end date to trigger renewal logic/logs for subsequent payments
+                const intermediateEndDate = await computeMembershipEndDate(civicrm, transaction.createdOn, period.membershipTypeId, period.sku);
+                if (intermediateEndDate) {
+                  await civicrm.saveMembership({
+                    id: localMembershipId,
+                    end_date: intermediateEndDate,
+                    is_override: false,
+                  });
+                }
+                
+                // Record renewal activity for every subsequent payment in this period too!
+                await civicrm.recordMembershipActivity({
+                  membershipId: localMembershipId,
+                  contactId: contactId,
+                  activityType: 'Renewal',
+                  date: transaction.createdOn,
+                  subject: `Squarespace Renewal (Order #${order?.orderNumber || transaction.id})`,
                 });
+                console.log(`${progress} Linked additional transaction ${payment.externalTransactionId} to Membership ${localMembershipId} and updated end date to ${intermediateEndDate}`);
               }
-              
-              // Record renewal activity for every subsequent payment in this period too!
-              await civicrm.recordMembershipActivity({
-                membershipId: localMembershipId,
-                contactId: contactId,
-                activityType: 'Renewal',
-                date: transaction.createdOn,
-                subject: `Squarespace Renewal (Order #${order?.orderNumber || transaction.id})`,
-              });
-              console.log(`${progress} Linked additional transaction ${payment.externalTransactionId} to Membership ${localMembershipId} and updated end date to ${intermediateEndDate}`);
             }
             isFirst = false;
           }

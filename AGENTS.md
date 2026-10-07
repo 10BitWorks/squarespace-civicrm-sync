@@ -6,6 +6,7 @@
 - **Membership Status**: Prefer letting CiviCRM calculate membership statuses automatically based on payment and duration dates (`is_override: false`) instead of forcing manual statuses.
 - **De-duplication**: Always check for existing `trxn_id` or `invoice_id` before creating new `Order` or `Contribution` records to prevent duplicate financial data.
 - **Historical Backfilling**: When backfilling historical data, ensure the `receive_date` on the contribution matches the original Squarespace transaction date to maintain accurate accounting history.
+- **Contribution Status**: All synced contributions (memberships, donations, and sales) represent confirmed transactions and must explicitly specify `contribution_status_id: 1` (Completed). CiviCRM APIv4's `Order.create` defaults to `Pending` (ID 2) when omitted, which must not be allowed to reflect Squarespace's delayed physical fulfillment status.
 
 ## Recovery Log & Lessons Learned
 

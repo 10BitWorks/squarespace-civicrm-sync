@@ -233,6 +233,7 @@ export class CiviCRM {
       contributionValues: {
         contact_id: params.contactId,
         financial_type_id: 2, // Member Dues
+        contribution_status_id: 1, // Completed
         receive_date: params.receiveDate,
         payment_instrument_id: 1, // Credit Card
         total_amount: params.amount,
