@@ -257,7 +257,21 @@ export class CiviCRM {
       ]
     };
 
-    return this.saveOrder(orderParams);
+    const result = await this.saveOrder(orderParams);
+    const contributionId = result.values?.[0]?.id;
+    if (contributionId && contributionId > 0 && !this.preview) {
+      try {
+        await this.apiRequest('Contribution', 'update', {
+          where: [['id', '=', contributionId]],
+          values: {
+            contribution_status_id: 1, // Completed
+          },
+        });
+      } catch (err: any) {
+        console.error(`Failed to update Contribution ${contributionId} to Completed:`, err.message);
+      }
+    }
+    return result;
   }
 
   public async saveContact(profile: SquarespaceProfile, existingContact?: CiviCRMContact) {

@@ -23,6 +23,10 @@
 - **Problem**: Encountered a "Race Condition" where multiple background sync workers were accidentally launched in parallel. This led to over 4,900 duplicate activity logs and ambiguous financial linking.
 - **Solution**: Implemented a **Lock File** mechanism (`.sync.lock`) in `src/index.ts`. The script now checks for this file on startup, records its PID, and aborts if another sync is already in progress. It also includes automatic cleanup listeners for SIGINT/SIGTERM.
 
+### Order APIv4 Contribution Status
+- **Discovery**: CiviCRM APIv4's `Order.create` strictly initializes orders and contributions in `Pending` state by design, ignoring `contribution_status_id: 1` passed in `contributionValues`.
+- **Recovery**: In `syncMembershipWithPayment`, after `Order.create` returns the contribution ID, an explicit `Contribution.update` is executed immediately to transition the contribution to `Completed` (`contribution_status_id: 1`).
+
 ### Squarespace Billing & Door Access Lifecycle
 - **Day 0 (End Date)**: Last paid period expires.
 - **Day 1 - Day 5 (Grace)**: Squarespace will attempt a retry on Day 5. Physical door access remains available during this window to avoid unnecessary friction.
