@@ -597,42 +597,16 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
         existingContact = await civicrm.getContactByName(firstName, lastName);
       }
 
-      // Normalize address and phone from either the profile API or the order/billing info
-      let addressForSave = null;
-      if (profileFromApi && profileFromApi.address) {
-        addressForSave = profileFromApi.address;
-      } else if (orderForContact && orderForContact.billingAddress) {
-        addressForSave = {
-          ...orderForContact.billingAddress,
-          firstName: titleCase(orderForContact.billingAddress.firstName),
-          lastName: titleCase(orderForContact.billingAddress.lastName),
-        };
-      }
-      const phoneForSave = personalPhoneNumber || (profileFromApi && profileFromApi.phone) || (orderForContact && orderForContact.billingAddress && orderForContact.billingAddress.phone) || null;
-
-      const profileForSave: SquarespaceProfile = {
-        // Avoid driving matching by an external identifier. Use email/phone lookups instead.
-        id: email || '',
-        email: email,
-        firstName: firstName,
-        lastName: lastName,
-        // If we have a Squarespace profile for this email, prefer those address/phone details
-        address: addressForSave,
-        phone: phoneForSave,
-        createdOn: firstTransaction.createdOn,
-        hasAccount: false,
-        isCustomer: true,
-        acceptsMarketing: false,
-      };
-
-      const saveResult = await civicrm.saveContact(profileForSave, existingContact || undefined);
-      const contactId = saveResult.values[0].id;
-
-      if (!contactId) {
-        console.error(`${progress} Could not find or create contact for email: ${email}`);
+      // Match-only mode: Squarespace is a frozen legacy source. Never create
+      // contacts or write contact fields (names, primaries, addresses) from
+      // its data - match an existing contact or skip the customer entirely.
+      if (!existingContact || !existingContact.id) {
+        console.log(`${progress} No existing CiviCRM contact for ${email} (match-only mode). Skipping - contacts are no longer created from Squarespace.`);
         continue;
       }
-      console.log(`${progress} Contact saved (ID: ${contactId}).`);
+
+      const contactId: number = existingContact.id;
+      console.log(`${progress} Contact matched (ID: ${contactId}).`);
       // --- End Contact ---
 
       let membershipPeriods: {
@@ -1016,23 +990,16 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
               // Check if the emergency contact is the person themselves (case-insensitive)
               const selfContact = emergencyContactName.trim().toLowerCase() === `${firstName} ${lastName}`.trim().toLowerCase();
 
-              if (selfContact && emergencyContactPhone) {
-                console.log(`${progress} Emergency contact is the person themselves. Adding phone to their record.`);
-                await civicrm.savePhone(contactId, emergencyContactPhone);
+              if (selfContact) {
+                // Match-only mode: no phone writes to the member's record from
+                // Squarespace data. Nothing to link - the EC is the member.
+                console.log(`${progress} Emergency contact is the person themselves. No write needed in match-only mode.`);
               } else {
                 const nameParts = emergencyContactName.split(' ');
                 const ecFirstName = titleCase(nameParts.shift() || '');
                 const ecLastName = titleCase(nameParts.join(' '));
-                const ecProfile: SquarespaceProfile = {
-                  // Don't assign an external identifier for emergency contacts.
-                  id: '',
-                  firstName: ecFirstName,
-                  lastName: ecLastName,
-                  email: null, phone: emergencyContactPhone, address: null, createdOn: transaction.createdOn,
-                  hasAccount: false, isCustomer: false, acceptsMarketing: false,
-                };
 
-                // Try to locate an existing emergency contact by phone or name before creating.
+                // Match-only mode: link only an existing EC contact; never create one.
                 let ecExisting = null;
                 if (emergencyContactPhone) {
                   ecExisting = await civicrm.getContactByPhone(emergencyContactPhone);
@@ -1041,13 +1008,12 @@ export async function runSync(opts?: { singleEmail?: string; apply?: boolean; fo
                   ecExisting = await civicrm.getContactByName(ecFirstName, ecLastName);
                 }
 
-                const ecSaveResult = await civicrm.saveContact(ecProfile, ecExisting || undefined);
-                const emergencyContactId = ecSaveResult.values[0].id;
-
-                if (emergencyContactId) {
+                if (ecExisting && ecExisting.id) {
                   const relationshipTypeId = await civicrm.getRelationshipTypeId('Emergency Contact Of');
-                  await civicrm.saveRelationship(contactId, emergencyContactId, relationshipTypeId);
+                  await civicrm.saveRelationship(contactId, ecExisting.id, relationshipTypeId);
                   console.log(`${progress} Upserted emergency contact relationship for ${emergencyContactName}.`);
+                } else {
+                  console.log(`${progress} Emergency contact ${emergencyContactName} not found in CiviCRM (match-only mode). Skipping creation.`);
                 }
               }
               processedEmergencyContacts.add(ecIdentifier); // Mark as processed

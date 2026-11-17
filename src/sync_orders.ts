@@ -51,22 +51,12 @@ async function syncOrders() {
     process.stdout.write(`(${i+1}/${emails.length}) Processing ${email}...\r`);
 
     try {
-      // 3. Find/Create Contact (simplified matching)
-      let contact = await civicrm.getContactByEmail(email);
-      if (!contact) {
-        // Create basic contact if missing
-        const nameParts = email.split('@')[0].split(/[._]/);
-        const firstName = nameParts[0] || 'Unknown';
-        const lastName = nameParts.slice(1).join(' ') || 'Unknown';
-        const result = await civicrm.saveContact({
-           id: email, email, firstName, lastName,
-           address: null, phone: null, createdOn: customerTransactions[0].createdOn,
-           hasAccount: false, isCustomer: true, acceptsMarketing: false
-        } as SquarespaceProfile);
-        contact = result.values[0];
+      // 3. Match existing contact only (match-only mode: never create contacts)
+      const contact = await civicrm.getContactByEmail(email);
+      if (!contact || !contact.id) {
+        console.log(`Skipping ${email}: no existing CiviCRM contact (match-only mode).`);
+        continue;
       }
-
-      if (!contact || !contact.id) continue;
 
       // 4. Identify Membership Transactions and execute Order
       for (const t of customerTransactions) {
