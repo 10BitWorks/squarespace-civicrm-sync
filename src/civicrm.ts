@@ -84,11 +84,15 @@ export class CiviCRM {
     const emailResult = await this.apiRequest('Email', 'get', {
       select: ['contact_id'],
       where: [['email', '=', email]],
-      limit: 1,
     });
 
     if (emailResult && emailResult.count > 0) {
-      const contactId = emailResult.values[0].contact_id;
+      const contactIds: number[] = Array.from(new Set<number>(emailResult.values.map((v: any) => Number(v.contact_id))));
+      if (contactIds.length > 1) {
+        console.error(`getContactByEmail: email ${email} matches multiple contacts (${contactIds.join(', ')}). Refusing to pick one; merge the duplicates in CiviCRM first.`);
+        return null;
+      }
+      const contactId = contactIds[0];
       const result = await this.apiRequest('Contact', 'get', {
         select: ['id', 'first_name', 'last_name', 'external_identifier', 'created_date'],
         where: [['id', '=', contactId]],
@@ -129,31 +133,47 @@ export class CiviCRM {
     const last10 = parsed.national;
     const normalized = `+1${last10}`;
 
+    const distinctIds = (res: any): number[] => Array.from(new Set<number>((res.values || []).map((v: any) => Number(v.contact_id))));
+
     let phoneResult = await this.apiRequest('Phone', 'get', {
       select: ['contact_id'],
       where: [['phone', '=', normalized]],
-      limit: 1,
     });
-    
-    if (!phoneResult || phoneResult.count === 0) {
+
+    let phoneIds = phoneResult && phoneResult.count > 0 ? distinctIds(phoneResult) : [];
+    if (phoneIds.length > 1) {
+      console.error(`getContactByPhone: phone ${phone} matches multiple contacts (${phoneIds.join(', ')}). Refusing to pick one.`);
+      return null;
+    }
+
+    if (phoneIds.length === 0) {
       phoneResult = await this.apiRequest('Phone', 'get', {
         select: ['contact_id'],
         where: [['phone', '=', last10]],
-        limit: 1,
       });
+      phoneIds = phoneResult && phoneResult.count > 0 ? distinctIds(phoneResult) : [];
+      if (phoneIds.length > 1) {
+        console.error(`getContactByPhone: phone ${last10} matches multiple contacts (${phoneIds.join(', ')}). Refusing to pick one.`);
+        return null;
+      }
     }
 
-    if (!phoneResult || phoneResult.count === 0) {
+    if (phoneIds.length === 0) {
       phoneResult = await this.apiRequest('Phone', 'get', {
         select: ['contact_id'],
         where: [['phone', 'LIKE', `%${last10}`]],
         orderBy: { 'id': 'DESC' },
-        limit: 1,
+        limit: 5,
       });
+      phoneIds = phoneResult && phoneResult.count > 0 ? distinctIds(phoneResult) : [];
+      if (phoneIds.length > 1) {
+        console.error(`getContactByPhone: phone ${last10} matches multiple contacts (${phoneIds.join(', ')}). Refusing to pick one.`);
+        return null;
+      }
     }
 
-    if (phoneResult && phoneResult.count > 0) {
-      const contactId = phoneResult.values[0].contact_id;
+    if (phoneIds.length === 1) {
+      const contactId = phoneIds[0];
       const contactResult = await this.apiRequest('Contact', 'get', {
         select: ['id', 'first_name', 'last_name', 'external_identifier', 'created_date'],
         where: [['id', '=', contactId]],
@@ -184,10 +204,14 @@ export class CiviCRM {
         ['first_name', '=', firstName],
         ['last_name', '=', lastName],
       ],
-      limit: 1,
     });
 
     if (result && result.count > 0) {
+      const contactIds: number[] = Array.from(new Set<number>(result.values.map((v: any) => Number(v.id))));
+      if (contactIds.length > 1) {
+        console.error(`getContactByName: name ${firstName} ${lastName} matches multiple contacts (${contactIds.join(', ')}). Refusing to pick one.`);
+        return null;
+      }
       return result.values[0];
     }
 
